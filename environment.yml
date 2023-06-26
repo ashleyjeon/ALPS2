@@ -1,0 +1,30 @@
+name: alps
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7.7
+  - ipywidgets=7.5.1
+  - psycopg2
+  - sqlalchemy
+  - python-decouple
+  - gcc
+  - pandas=1.1.3
+  - plotly=4.11.0
+  - matplotlib=3.3.2
+  - seaborn
+  - notebook
+  - regex
+  - numpy=1.19.1
+  # scipy<1.5 because of boundary errors that occured in 1.5.x versions
+  #  but didn't exist prior and were patched in >1.8
+  - scipy<1.5
+  - scikit-learn
+  - numexpr
+  - openblas
+  - pytest=4.4.1
+  - libblas=*=*openblas
+  - openpyxl
+  - pip
+  - pip:
+    - hublib
