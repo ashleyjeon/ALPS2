@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from hublib import ui
 import numpy as np
 from typing import List, Tuple, Union
-from IPython.display import display
+from IPython.display import display, clear_output
 import functions as func
 import files
 import widgets
@@ -52,6 +52,9 @@ def conf_gcv(fig: plt.Figure, data, test=False):
              x_label='Time',
              y_label='Thickness Change (m)'
              )
+
+        display(fig)
+        clear_output(wait=True)
 
     form = widgets.ConfigForm(
         [p, q, num],
@@ -111,6 +114,9 @@ def conf_reml(fig: plt.Figure, data, test=False):
              x_label='Time',
              y_label='Thickness Change (m)'
              )
+
+        display(fig)
+        clear_output(wait=True)
 
     form = widgets.ConfigForm(
         [p, q, num, lambda_var, error_var],
@@ -194,6 +200,9 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
              y_label='Thickness Change (m)'
              )
 
+        display(fig)
+        clear_output(wait=True)
+
     form = widgets.ConfigForm(
         [p, q, num, thresh1, thresh2],
         update_func=update_plot,
@@ -266,6 +275,9 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
             y=0, color='k', linestyle=':',label='0 thickness change', lw=3
         )
         ax2.legend()
+
+        display(fig)
+        clear_output(wait=True)
 
     form = widgets.ConfigForm(
         [p, q, num, lambda_var, error_var],
