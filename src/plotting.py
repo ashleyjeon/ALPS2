@@ -56,7 +56,9 @@ def conf_gcv(fig: plt.Figure, data, test=False):
         display(fig)
         clear_output(wait=True)
 
-    form = widgets.ConfigForm(
+        return fig
+
+    form = widgets.FormConfigIO(
         [p, q, num],
         update_func=update_plot,
         submit_text='Plot',
@@ -118,7 +120,9 @@ def conf_reml(fig: plt.Figure, data, test=False):
         display(fig)
         clear_output(wait=True)
 
-    form = widgets.ConfigForm(
+        return fig
+
+    form = widgets.FormConfigIO(
         [p, q, num, lambda_var, error_var],
         update_func=update_plot,
         submit_text='Plot',
@@ -201,9 +205,12 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
              )
 
         display(fig)
+        # Clear cell output once another plot request is received
         clear_output(wait=True)
 
-    form = widgets.ConfigForm(
+        return fig
+
+    form = widgets.FormConfigIO(
         [p, q, num, thresh1, thresh2],
         update_func=update_plot,
         submit_text='Plot',
@@ -279,7 +286,9 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
         display(fig)
         clear_output(wait=True)
 
-    form = widgets.ConfigForm(
+        return fig
+
+    form = widgets.FormConfigIO(
         [p, q, num, lambda_var, error_var],
         update_func=update_plot,
         submit_text='Plot',

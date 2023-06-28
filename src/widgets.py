@@ -1,5 +1,6 @@
 import ipywidgets as widg
-from IPython.display import display
+import matplotlib.pyplot as plt
+from IPython.display import display, Javascript
 from hublib import ui
 from pathlib import Path
 import files
@@ -70,10 +71,89 @@ class DataSelector(widg.VBox):
         )
 
 
+class BtnImgDownload(widg.HBox):
+    """Button to download images"""
+    def __init__(self):
+        txt_filename = widg.Text(
+            value='',
+            placeholder='enter file name',
+        )
+        drop_file_format = widg.Dropdown(
+            options=files.FORMAT_IMG_OUT,
+            value=files.FORMAT_IMG_OUT[0]
+        )
+        btn_down = widg.Button(
+            description='Download',
+            disabled=True
+        )
+
+        def toggle(change):
+            """Disable download button if no filename specified"""
+            if change['name'] == 'value':
+                if len(change['new']) > 0:
+                    btn_down.disabled = False
+                else:
+                    btn_down.disabled = True
+
+        txt_filename.observe(toggle)
+
+        super().__init__((txt_filename, drop_file_format, btn_down))
+
+    def on_click(self, func):
+        btn_down = self.children[2]
+        btn_down.on_click(func)
+
+    def download(self, fig: plt.Figure):
+        """Download image to browser"""
+        txt_filename = self.children[0]
+        drop_file_format = self.children[1]
+
+        filename = f'{txt_filename.value}.{drop_file_format.value}'
+        path = files.upload_plt_plot(fig, filename)
+        # need to make path relative to '.' for javascript windows
+        path = files.get_path_relative_to(path, files.DIR_SRC).as_posix()
+
+        # trigger a browser popup that will download the image to browser
+        js = Javascript(
+            f"window.open('{path}', 'Download', '_blank')"
+        )
+        display(js)
+
+    def disable(self):
+        """
+        Disable everything but the download button -- that gets controlled by
+          the filename field
+        """
+        # TODO 6/27: could see this not working as intended if order of the
+        #   children is changed
+        for c in self.children[:-1]:
+            c.disabled = True
+
+    def enable(self):
+        """
+        Enable everything but the download button -- that gets controlled by
+          the filename field
+        """
+        # TODO 6/27: could see this not working as intended if order of the
+        #   children is changed
+        for c in self.children[:-1]:
+            c.disabled = False
+
+    def hide(self):
+        """Hide the widget"""
+        if self.layout.display == 'block':
+            self.layout.display = 'none'
+
+    def show(self):
+        """Show the widget"""
+        if self.layout.display == 'none':
+            self.layout.display = 'block'
+
+
 class BtnUpload(widg.HBox):
     def __init__(self, disabled=False, **kwargs):
         dropdown_file = widg.Dropdown(
-            options=files.VALID_DATATYPES,
+            options=files.FORMAT_DATA,
         )
 
         ftype = '.p'
@@ -97,7 +177,7 @@ class BtnUpload(widg.HBox):
 
         btn_upload.observe(finish_upload)
 
-        super().__init__((box_selector, btn_upload, output))
+        super().__init__((dropdown_file, btn_upload, output))
 
         self.observe(self._finish_upload)
 
@@ -111,45 +191,72 @@ class BtnUpload(widg.HBox):
         widget.reset()
 
 
-class ConfigForm(ui.Form):
+class FormConfigIO(ui.Form):
+    """
+    Extension of hublib.ui.Form which appends submit and download buttons,
+      as well as an Output widget that can print optional (test) messages
+    """
     def __init__(self,
                  wlist,
                  update_func,
                  submit_text: str = "Submit",
-                 test = False,
+                 download=True,
+                 test=False,
                  test_msg: str = None,
-                 download = False,
                  **kwargs):
         """
-        Appends an ipywidgets.Output widget to capture any stdout for testing
-          purposes, as well as a button for submitting form parameters
         :param wlist:
-        :param test:
+        :param update_func:
         :param submit_text:
+        :param download: should a download button be displayed to save output?
+        :param test:
+        :param test_msg:
         :param kwargs:
         """
         btn_submit = widg.Button(description=submit_text)
+        btn_down = BtnImgDownload()
+        if download:
+            btn_down.disable() # nothing to download yet; disable
+        else:
+            btn_down.hide() # @download == False
+        box_btns = widg.HBox([btn_submit, btn_down])
         out_test = widg.Output()
+
+        # @update_func output
+        output = None
 
         @out_test.capture(clear_output=True, wait=True)
         def update(b):
             """Call the @update_func passed above"""
             if test:
+                # print test output
                 with out_test:
                     print('Updated parameters:\n')
                     for widget in wlist:
-                        # Only read new input from NumValue and its children
+                        # only read new input from NumValue and its children
                         if isinstance(widget, ui.numvalue.NumValue):
                              print(f'{widget.name} {widget.value}')
 
-                    # Print any additional message if passed
+                    # print any additional message if passed
                     if test_msg is not None: print(test_msg)
 
-            update_func()
+            nonlocal output
+            output = update_func()
+
+            # if @update_func returns some results, enable downloading
+            if output is None:
+                btn_down.disable()
+            else:
+                btn_down.enable()
+
+        def save(b):
+            nonlocal output
+            btn_down.download(output)
 
         btn_submit.on_click(update)
+        btn_down.on_click(save)
 
-        wlist.extend([btn_submit, out_test])
+        wlist.extend([box_btns, out_test])
         super().__init__(wlist, **kwargs)
 
 
@@ -180,8 +287,7 @@ def upload_files():
     return box_selector, btn_upload, output
 
 
-# class DownloadToggle(ui.Download):
-#     def __int__(self, filename, disable = False, **kwargs):
-#         super.__init__(filename, **kwargs)
-
-
+# if __name__ == '__main__':
+#     f1 = plt.figure(figsize=(12, 7))
+#     down = BtnImgDownload(f1)
+#     down.click()

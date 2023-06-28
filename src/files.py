@@ -4,10 +4,13 @@ import pickle
 import csv
 import os
 
+import matplotlib.pyplot as plt
 
-VALID_DATATYPES = ['.p', '.csv', '.txt']
+FORMAT_DATA = ('.p', '.csv', '.txt')
+FORMAT_IMG_OUT = ('png', 'jpg', 'pdf')
 
 DIR_PROJECT = Path(__file__).parent.parent
+DIR_SRC = DIR_PROJECT / 'src'
 DIR_BIN = DIR_PROJECT / 'bin'
 DIR_SAMPLE_DATA = DIR_PROJECT / 'data'
 
@@ -23,6 +26,15 @@ except KeyError:
     DIR_SESS_RESULTS = DIR_SAMPLE_DATA / 'out'
 
 
+def get_path_relative_to(a: Path, b: Path):
+    """
+    Get a path to @a relative to @b, including '..' where moving up the tree is
+      necessary; required for opening javascript windows
+      REF: https://stackoverflow.com/a/43613742/13557629
+    """
+    return Path(os.path.relpath(a, b))
+
+
 def load_data(paths: List[Union[str, Path]]):
     """Read the data located in @paths if it's CSV, pickle, or text"""
     paths = [Path(p) for p in paths]
@@ -31,7 +43,7 @@ def load_data(paths: List[Union[str, Path]]):
     for p in paths:
         ft = p.suffix
 
-        if ft not in VALID_DATATYPES:
+        if ft not in FORMAT_DATA:
             print(f'{p} is not a valid filetype')
             continue
 
@@ -65,6 +77,18 @@ def dump_pickle(path: Path, data, bytes=False):
 
     except ValueError:
         raise
+
+
+def upload_plt_plot(fig: plt.Figure, filename: str):
+    """
+    Save figure plot and return the path to the save
+    NOTE: must be called BEFORE call to plt.show() otherwise saved file will
+      be blank
+    """
+    path = DIR_SESS_RESULTS / filename
+
+    fig.savefig(path, bbox_inches='tight')
+    return path
 
 
 # if __name__ == '__main__':
