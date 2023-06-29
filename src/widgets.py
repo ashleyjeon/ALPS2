@@ -12,62 +12,103 @@ class DataSelector(widg.VBox):
       from sample data (packaged with project), existing (previously uploaded),
       and upload data (upload your own)
     """
-    OPTIONS = ['Sample', 'Existing', 'Upload']
+    OPTIONS = ['Sample', 'Personal']
 
     def __init__(self, **kwargs):
+        self.data = None
+        self.data_path: Path = None
+
         # uploaded/selected data
-        self.data = []
-
-        label = widg.Label(value='Select data source:')
+        label_instr = widg.Label(value='Select data source:')
         btn_sample = widg.Button(description=self.OPTIONS[0])
-        btn_exist = widg.Button(description=self.OPTIONS[1])
-        btn_up = widg.Button(description=self.OPTIONS[2])
-        box_options = widg.HBox([label, btn_sample, btn_exist, btn_up])
+        btn_own = widg.Button(description=self.OPTIONS[1])
+        box_options = widg.HBox((label_instr, btn_sample, btn_own))
 
-        selector = widg.SelectMultiple(
+        sel_file = widg.Select(
             options=[],
-            description='Select files (drag click for multiple):',
+            description='Select files:',
         )
-        btn_upload = BtnUpload()
+        sel_file.layout.display = 'none' # hide selector upon init
 
-        def toggle(btn):
-            """Display respective widget upon data source selection"""
-            if btn.description == self.OPTIONS[0]: # sample
-                # 'w' is 'layout' attribute of ui.FileUpload
-                btn_upload.layout.visibility = 'hidden'
-
-                f = [p.relative_to(files.DIR_PROJECT)
-                     for p in Path(files.DIR_SAMPLE_DATA).iterdir()
-                     if p.is_file()]
-                selector.options = f
-                selector.layout.visibility = 'visible'
-
-            elif btn.description == self.OPTIONS[1]: # existing
-                # 'w' is 'layout' attribute of ui.FileUpload
-                btn_upload.layout.visibility = 'hidden'
-
-                f = [p.relative_to(files.DIR_PROJECT)
-                     for p in Path(files.DIR_SESS_DATA).iterdir()
-                     if p.is_file()]
-                selector.options = f
-                selector.layout.visibility = 'visible'
-
-            else: # upload
-                selector.layout.visibility = 'hidden'
-                btn_upload.layout.visibility = 'visible'
-
-        btn_sample.on_click(toggle)
-        btn_exist.on_click(toggle)
-        btn_up.on_click(toggle)
-
-        layout = widg.Layout(
-            display='flex',
-            flex_flow='column',
-            align_items='stretch',
+        btn_up = widg.FileUpload(
+            desc='Upload',
+            accept='.p,.csv',
+            multiple=True,
+            dir=files.DIR_SESS_DATA,
         )
+        btn_submit = widg.Button(description='Select')
+        btn_submit.disabled = True # disable upon init
+        box_pick = widg.HBox((btn_submit, btn_up))
+        box_pick.layout.display = 'none' # hide upon init
+
+        label_files = widg.Label()
+        label_files.layout.visibility = 'hidden'
+
+        def source_sample(b):
+            """Sample data dir selected as source"""
+            sel_file.layout.display = 'block'
+            btn_up.layout.visibility = 'hidden'
+            box_pick.layout.display = 'block'
+            label_files.layout.visibility = 'visible'
+
+            samples = [
+                str(files.get_path_relative_to(p, files.DIR_PROJECT))
+                for p in Path(files.DIR_SAMPLE_DATA).iterdir()
+                if p.suffix in files.FORMAT_DATA
+            ]
+            sel_file.options = samples
+
+        def source_own(b):
+            """Personal data dir selected as source"""
+            sel_file.layout.display = 'block'
+            btn_up.layout.visibility = 'visible'
+            box_pick.layout.display = 'block'
+            label_files.layout.visibility = 'visible'
+
+            personal = [
+                str(files.get_path_relative_to(p, files.DIR_PROJECT))
+                for p in Path(files.DIR_SESS_DATA).iterdir()
+                if p.suffix in files.FORMAT_DATA
+            ]
+            sel_file.options = personal
+
+        btn_sample.on_click(source_sample)
+        btn_own.on_click(source_own)
+
+        def select(change):
+            """File selected from selector"""
+            v = change['new']
+
+            if (v is not None) and (len(v) > 0):
+                btn_submit.disabled = False
+                # save data path from project root
+                self.data_path = files.DIR_PROJECT / v
+            else:
+                btn_submit.disabled = True
+
+        sel_file.observe(select, names='value')
+
+        def submit(b):
+            """Read data in @self.data_path"""
+            self.data = files.load_data(self.data_path)
+            label_files.value = f'Loaded data from: {self.data_path.name} ' \
+                                f'| Access using "data" attribute of DataSelector.'
+
+        btn_submit.on_click(submit)
+
+        def upload(change):
+            v = change['new']
+
+            if (v is not None) and (len(v) > 0):
+                for name, meta in v.items():
+                    files.dump_array(name, meta['content'], bytes=True)
+                    btn_own.click() # reload list of existing files
+
+        btn_up.observe(upload, names='value')
+
         super().__init__(
-            [box_options, selector, btn_upload],
-            layout=layout, **kwargs
+            [box_options, sel_file, box_pick, label_files],
+            **kwargs
         )
 
 
@@ -150,47 +191,6 @@ class BtnImgDownload(widg.HBox):
             self.layout.display = 'block'
 
 
-class BtnUpload(widg.HBox):
-    def __init__(self, disabled=False, **kwargs):
-        dropdown_file = widg.Dropdown(
-            options=files.FORMAT_DATA,
-        )
-
-        ftype = '.p'
-        desc = f'Upload {ftype}'
-        btn_upload = widg.FileUpload(
-            description=f'desc',
-            accept='.p',
-            multiple=True,
-            dir=files.DIR_SESS_DATA,
-            disabled=disabled
-        )
-        widg.link((dropdown_file, 'value'), (btn_upload, 'accept'))
-
-        output = widg.Output()
-
-        @output.capture(clear_output=True, wait=True)
-        def finish_upload(b):
-            """Reset the FileUpload widget to accept more uploads"""
-            print('Successfully uploaded:')
-            [print('\t', d) for d in btn_upload.value]
-
-        btn_upload.observe(finish_upload)
-
-        super().__init__((dropdown_file, btn_upload, output))
-
-        self.observe(self._finish_upload)
-
-    @staticmethod
-    def _finish_upload(widget, name):
-        """Reset the FileUpload widget to accept more uploads"""
-        print('Successfully uploaded:')
-        for n in name:
-            print('\t', n)
-
-        widget.reset()
-
-
 class FormConfigIO(ui.Form):
     """
     Extension of hublib.ui.Form which appends submit and download buttons,
@@ -260,34 +260,11 @@ class FormConfigIO(ui.Form):
         super().__init__(wlist, **kwargs)
 
 
-def upload_files():
-    dropdown_file = widg.Dropdown(
-        options=['.p', '.csv', '.json', '.txt'],
-        disabled=False
-    )
-    box_selector = widg.HBox(
-        [widg.Label('Select file type to upload:'), dropdown_file]
-    )
-    btn_upload = widg.FileUpload(
-        description='Upload files',
-        accept='.p',
-        multiple=True,
-        dir=files.DIR_SESS_DATA
-    )
-    widg.link((dropdown_file, 'value'), (btn_upload, 'accept'))
+if __name__ == '__main__':
+    f1 = plt.figure(figsize=(12, 7))
+    d = DataSelector()
+    _, btn_sample, btn_own = d.children[0].children
+    btn_own.click()
 
-    output = widg.Output()
-
-    def upload(change):
-        with output:
-            print(change.items())
-
-    btn_upload.observe(upload)
-
-    return box_selector, btn_upload, output
-
-
-# if __name__ == '__main__':
-#     f1 = plt.figure(figsize=(12, 7))
-#     down = BtnImgDownload(f1)
-#     down.click()
+    btn_submit, btn_up = d.children[2].children
+    btn_submit.click()

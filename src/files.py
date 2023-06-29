@@ -5,6 +5,7 @@ import csv
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 FORMAT_DATA = ('.p', '.csv', '.txt')
 FORMAT_IMG_OUT = ('png', 'jpg', 'pdf')
@@ -35,30 +36,25 @@ def get_path_relative_to(a: Path, b: Path):
     return Path(os.path.relpath(a, b))
 
 
-def load_data(paths: List[Union[str, Path]]):
-    """Read the data located in @paths if it's CSV, pickle, or text"""
-    paths = [Path(p) for p in paths]
+def load_data(path: Union[str, Path]):
+    """Read the data located in @path"""
+    p = Path(path)
+    ftype = p.suffix
 
-    data = []
-    for p in paths:
-        ft = p.suffix
+    data = None
 
-        if ft not in FORMAT_DATA:
-            print(f'{p} is not a valid filetype')
-            continue
+    if ftype not in FORMAT_DATA:
+        raise ValueError(f'Invalid file type passed ({ftype}): {p}')
 
-        if ft == '.p':
-            d = load_pickle(p)
-            data.append((p.relative_to(DIR_SESS_DATA), d))
-        elif ft == '.csv':
-            pass
-        elif ft == '.txt':
-            pass
+    if ftype == '.p':
+        data = load_pickle_arr(p)
+    elif ftype == '.csv':
+        data = load_csv_arr(p)
 
     return data
 
 
-def load_pickle(path: Path):
+def load_pickle_arr(path: Path):
     if path.suffix != '.p':
         raise ValueError(f'Path file is not a pickle file: {path.name}')
 
@@ -66,14 +62,61 @@ def load_pickle(path: Path):
         return pickle.load(f)
 
 
-def dump_pickle(path: Path, data, bytes=False):
+def load_csv_arr(path: Path) -> np.ndarray:
+    """Read a CSV file from @path and """
+    arr = np.genfromtxt(path, delimiter=',')
+    return arr
+
+
+def dump_array(filename, data, bytes=False):
+    """Upload data to the user save (DIR_SESS_DATA) directory"""
+    fname = Path(filename)
+    ftype = fname.suffix
+
+    if ftype not in FORMAT_DATA:
+        raise ValueError(f'Invalid data type ({ftype}): {filename}')
+
+    if ftype == '.p':
+        dump_pickle_arr(filename, data, bytes)
+    elif ftype == '.csv':
+        dump_csv_arr(filename, data, bytes)
+
+
+def dump_csv_arr(filename, data, bytes=False):
+    """Save @data as a CSV file; @data must be a 1-d or 2-d numerical array"""
+    fp = Path(filename)
+    if len(fp.suffix) == 0:
+        filename = filename + '.csv'
+
+    try:
+        if bytes:
+            # bytes -> list of strings
+            data = data.decode('utf-8').splitlines()
+
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter=',')
+            for point in data:
+                d = point.split(',')
+                writer.writerow(d)
+    except ValueError as e:
+        raise ValueError(f'Passed data: {data}') from e
+
+
+def dump_pickle_arr(filename, data, bytes=False):
     """
-    Pickle data to @path; specify whether data source is @bytes
+    Pickle data to DIR_SESS_DATA; specify whether data source is @byte
     """
+    path = DIR_SESS_DATA / filename
     try:
         mode = 'wb' if bytes else 'w'
         with open(path, mode) as f:
-            pickle.dump(data, f)
+            if bytes:
+                d = pickle.loads(data)
+                pickle.dump(d, f)
+            else:
+                # TODO 6/29: might not work as inteded; haven't tested for
+                #   non-byte objects
+                pickle.dump(data, f)
 
     except ValueError:
         raise
