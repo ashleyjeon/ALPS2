@@ -6,6 +6,8 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
 
 FORMAT_DATA = ('.p', '.csv', '.txt')
 FORMAT_IMG_OUT = ('png', 'jpg', 'pdf')
@@ -15,16 +17,42 @@ DIR_SRC = DIR_PROJECT / 'src'
 DIR_BIN = DIR_PROJECT / 'bin'
 DIR_SAMPLE_DATA = DIR_PROJECT / 'data'
 
+
+def setup_local(data_dir: Path):
+    """Create the temp and out directories for locally stored data"""
+    temp = data_dir / 'temp'
+    out = data_dir / 'out'
+    temp.mkdir(exist_ok=True)
+    out.mkdir(exist_ok=True)
+
+    return temp, out
+
+
+def setup_remote(data_dir: Path):
+    """Create temp directory in ghub's current session"""
+    temp = data_dir / 'temp'
+    temp.mkdir(exist_ok=True)
+
+    return temp
+
+
 try:
     # Ghub server directories generated each time a tool is run
     SESSION = os.environ['SESSION']
-    DIR_SESS_DATA = os.environ['SESSIONDIR']
-    DIR_SESS_RESULTS = os.environ['RESULTSDIR']
+    DIR_SESS_DATA = Path(os.environ['SESSIONDIR'])
+    DIR_SESS_TDATA = setup_remote(DIR_SESS_DATA)
+    DIR_SESS_RESULTS = Path(os.environ['RESULTSDIR'])
 except KeyError:
     # Local path alternatives
     SESSION = None
-    DIR_SESS_DATA = DIR_SAMPLE_DATA / 'temp'
-    DIR_SESS_RESULTS = DIR_SAMPLE_DATA / 'out'
+    DIR_SESS_DATA = DIR_SAMPLE_DATA
+    DIR_SESS_TDATA, DIR_SESS_RESULTS = setup_local(DIR_SESS_DATA)
+
+
+def clear_temp():
+    """Clear the temp data directory -- as per official Ghub recommendations"""
+    for file in DIR_SESS_TDATA.iterdir():
+        file.unlink()
 
 
 def get_path_relative_to(a: Path, b: Path):
@@ -69,7 +97,7 @@ def load_csv_arr(path: Path) -> np.ndarray:
 
 
 def dump_array(filename, data, bytes=False):
-    """Upload data to the user save (DIR_SESS_DATA) directory"""
+    """Upload data to the user save (DIR_SESS_TDATA) directory"""
     fname = Path(filename)
     ftype = fname.suffix
 
@@ -83,20 +111,21 @@ def dump_array(filename, data, bytes=False):
 
 
 def dump_csv_arr(filename, data, bytes=False):
-    """Save @data as a CSV file; @data must be a 1-d or 2-d numerical array"""
-    fp = Path(filename)
-    if len(fp.suffix) == 0:
+    """Save @data as a CSV file"""
+    if len(Path(filename).suffix) == 0:
         filename = filename + '.csv'
+
+    fp = DIR_SESS_TDATA / filename
 
     try:
         if bytes:
             # bytes -> list of strings
             data = data.decode('utf-8').splitlines()
 
-        with open(filename, 'w', newline='') as f:
+        with open(fp, 'w', newline='') as f:
             writer = csv.writer(f, delimiter=',')
-            for point in data:
-                d = point.split(',')
+            for entry in data:
+                d = entry.split(',')
                 writer.writerow(d)
     except ValueError as e:
         raise ValueError(f'Passed data: {data}') from e

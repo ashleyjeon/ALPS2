@@ -67,7 +67,7 @@ class DataSelector(widg.VBox):
 
             personal = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
-                for p in Path(files.DIR_SESS_DATA).iterdir()
+                for p in Path(files.DIR_SESS_TDATA).iterdir()
                 if p.suffix in files.FORMAT_DATA
             ]
             sel_file.options = personal
