@@ -41,15 +41,15 @@ class DataSelector(widg.VBox):
         box_pick = widg.HBox((btn_submit, btn_up))
         box_pick.layout.display = 'none' # hide upon init
 
-        label_files = widg.Label()
-        label_files.layout.visibility = 'hidden'
+        out_selected = widg.Output()
+        out_selected.layout.visibility = 'hidden'
 
         def source_sample(b):
             """Sample data dir selected as source"""
             sel_file.layout.display = 'block'
             btn_up.layout.visibility = 'hidden'
             box_pick.layout.display = 'block'
-            label_files.layout.visibility = 'visible'
+            out_selected.layout.visibility = 'visible'
 
             samples = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
@@ -63,7 +63,7 @@ class DataSelector(widg.VBox):
             sel_file.layout.display = 'block'
             btn_up.layout.visibility = 'visible'
             box_pick.layout.display = 'block'
-            label_files.layout.visibility = 'visible'
+            out_selected.layout.visibility = 'visible'
 
             personal = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
@@ -91,8 +91,13 @@ class DataSelector(widg.VBox):
         def submit(b):
             """Read data in @self.data_path"""
             self.data = files.load_data(self.data_path)
-            label_files.value = f'Loaded data from: {self.data_path.name} ' \
-                                f'| Access using "data" attribute of DataSelector.'
+
+            with out_selected:
+                print(f'Loaded data from: {self.data_path.name}\n'
+                      f'*** Access using "data" attribute of DataSelector. ***')
+                display(self.data)
+
+            out_selected.clear_output(wait=True)
 
         btn_submit.on_click(submit)
 
@@ -107,7 +112,7 @@ class DataSelector(widg.VBox):
         btn_up.observe(upload, names='value')
 
         super().__init__(
-            [box_options, sel_file, box_pick, label_files],
+            [box_options, sel_file, box_pick, out_selected],
             **kwargs
         )
 

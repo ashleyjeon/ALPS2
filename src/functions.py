@@ -39,14 +39,43 @@
 #############################################################################################################################
 
 import numpy as np
+import pandas as pd
 from numpy.linalg import inv, det
 from scipy.optimize import minimize
 import scipy.stats
-from typing import Tuple
-
+from typing import Tuple, Union
 
 
 """--------------------------------Fitting Functions-------------------------"""
+def validate_data(data):
+    # TODO 7/13: run by Tufts team to develop more robust validation
+    """
+    Check that @data is:
+    - a numpy array
+    - has 2 columns
+    If @data is a pandas DataFrame, convert to numpy array and return (assuming
+      above condition is satisfied)
+    """
+    if isinstance(data, np.ndarray) or isinstance(data, pd.DataFrame):
+        if data.shape[1] != 2:
+            raise ValueError(
+                f'Fitting functions only take 2 columns; '
+                f'passed {data.shape[1]} ({data.shape})'
+            )
+        # convert to numpy array
+        if isinstance(data, pd.DataFrame):
+            nd = data.to_numpy()
+            return nd
+
+        return data
+
+    else:
+        raise TypeError(
+            f'Unknown data type passed ({type(data)}); '
+            f'data must be a 2 column numpy array or pandas DataFrame'
+        )
+
+
 def fit_gcv(
         data: np.ndarray,
         p: int,
@@ -61,26 +90,29 @@ def fit_gcv(
     :param num: number of observations (TODO 6/21: verify)
     :return:
     """
-    [n, lamb, sigmasq] = full_search_nk(data, p, q)
+    # validate input data
+    valid = validate_data(data)
+
+    [n, lamb, sigmasq] = full_search_nk(valid, p, q)
     c = n + p
-    U = Kno_pspline_opt(data, p, n)
-    B = Basis_Pspline(n, p, U, data[:, 0])
+    U = Kno_pspline_opt(valid, p, n)
+    B = Basis_Pspline(n, p, U, valid[:, 0])
     P = Penalty_p(q, c)
     theta = np.linalg.solve(B.T.dot(B) + lamb * P,
-                            B.T.dot(data[:, 1].reshape(-1, 1))
+                            B.T.dot(valid[:, 1].reshape(-1, 1))
                             )
     ### Getting mean of the prediction
-    xpred = np.linspace(data[0, 0], data[-1, 0], num)
+    xpred = np.linspace(valid[0, 0], valid[-1, 0], num)
     Bpred = Basis_Pspline(n, p, U, xpred)
     ypred1 = Bpred.dot(theta)
-    std_t1, std_n1 = Var_bounds(data, Bpred, B, theta, P, lamb)
+    std_t1, std_n1 = Var_bounds(valid, Bpred, B, theta, P, lamb)
 
     return {'xpred': xpred, 'ypred': ypred1,
             'std_t': std_t1, 'std_n': std_n1}
 
 
 def fit_reml(
-        data: np.ndarray,
+        data: Union[np.ndarray, pd.DataFrame],
         p: int = 4,
         q: int = 3,
         num: int = 200,
@@ -95,22 +127,25 @@ def fit_reml(
     :param par: (lambda var, error var)
     :return:
     """
-    n = int(data.shape[0]) # num of sections on the curve
+    # check validity of input data
+    valid = validate_data(data)
+
+    n = int(valid.shape[0]) # num of sections on the curve
 
     # Train/predict
-    U = Kno_pspline_opt(data, p, n)
-    B = Basis_Pspline(n, p, U, data[:, 0])
+    U = Kno_pspline_opt(valid, p, n)
+    B = Basis_Pspline(n, p, U, valid[:, 0])
     c = n + p
     P = Penalty_p(q, c)
     X, Z, C, sigma, D = XZsigma(B, P, q)
-    lamb, sig = max_reml(par, data, X, Z, sigma)
+    lamb, sig = max_reml(par, valid, X, Z, sigma)
 
     # Predict
-    xpred = np.linspace(data[0, 0], data[-1, 0], num)
+    xpred = np.linspace(valid[0, 0], valid[-1, 0], num)
     Bpred = Basis_Pspline(n, p, U, xpred)
     Xpred, Zpred, Cpred, sigma, D = XZsigma(Bpred, P, q)
     ypred3, std_t3, std_n3 = Inference(
-        data, Cpred, C, lamb, sig, D, confidence=0.95
+        valid, Cpred, C, lamb, sig, D, confidence=0.95
     )
 
     return {'X': X, 'Z': Z, 'C': C, 'D': D,

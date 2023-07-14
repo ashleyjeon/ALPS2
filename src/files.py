@@ -77,23 +77,23 @@ def load_data(path: Union[str, Path]):
     if ftype == '.p':
         data = load_pickle_arr(p)
     elif ftype == '.csv':
-        data = load_csv_arr(p)
+        data = load_csv(p)
 
     return data
 
 
 def load_pickle_arr(path: Path):
     if path.suffix != '.p':
-        raise ValueError(f'Path file is not a pickle file: {path.name}')
+        raise ValueError(f'Path file is not pickle format: {path.name}')
 
     with open(path, 'rb') as f:
         return pickle.load(f)
 
 
-def load_csv_arr(path: Path) -> np.ndarray:
-    """Read a CSV file from @path and """
-    arr = np.genfromtxt(path, delimiter=',')
-    return arr
+def load_csv(path: Path) -> pd.DataFrame:
+    """Read a CSV file from @path"""
+    data = pd.read_csv(path, sep=',', header='infer')
+    return data
 
 
 def dump_array(filename, data, bytes=False):
