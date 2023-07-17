@@ -4,7 +4,6 @@ import numpy as np
 from typing import List, Tuple, Union
 from IPython.display import display, clear_output
 import functions as func
-import files
 import widgets
 
 
@@ -16,6 +15,9 @@ def conf_gcv(fig: plt.Figure, data, test=False):
     :param test: (bool) show test output?
     :return:
     """
+    # validate input data
+    valid = func.validate_data(data)
+
     # degree of bases
     p = ui.Integer(name='Degree of bases:', value=5)
     # order of penalty
@@ -29,7 +31,7 @@ def conf_gcv(fig: plt.Figure, data, test=False):
           for testing purposes
         """
         gcv = func.fit_gcv(
-            data=data,
+            data=valid,
             p=p.value,
             q=q.value,
             num=num.value
@@ -40,7 +42,7 @@ def conf_gcv(fig: plt.Figure, data, test=False):
         ax = fig.subplots()
 
         plot(ax,
-             points=[('Data', data), ],
+             points=[('Data', valid), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -56,7 +58,12 @@ def conf_gcv(fig: plt.Figure, data, test=False):
         display(fig)
         clear_output(wait=True)
 
-        return fig
+        out_data = {'gcv': gcv}
+        results = {
+            'data': out_data, 'fig': fig
+        }
+
+        return results
 
     form = widgets.FormConfigIO(
         [p, q, num],
@@ -76,6 +83,9 @@ def conf_reml(fig: plt.Figure, data, test=False):
     :param test:
     :return:
     """
+    # validate input data
+    valid = func.validate_data(data)
+
     # degree of bases
     p = ui.Integer(name='Degree of bases:', value=5)
     # order of penalty
@@ -91,7 +101,7 @@ def conf_reml(fig: plt.Figure, data, test=False):
           for testing purposes
         """
         reml = func.fit_reml(
-            data=data,
+            data=valid,
             p=p.value,
             q=q.value,
             num=num.value,
@@ -104,7 +114,7 @@ def conf_reml(fig: plt.Figure, data, test=False):
         ax = fig.subplots()
 
         plot(ax,
-             points=[('Data', data), ],
+             points=[('Data', valid), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -120,7 +130,12 @@ def conf_reml(fig: plt.Figure, data, test=False):
         display(fig)
         clear_output(wait=True)
 
-        return fig
+        out_data = {'reml': reml}
+        results = {
+            'data': out_data, 'fig': fig
+        }
+
+        return results
 
     form = widgets.FormConfigIO(
         [p, q, num, lambda_var, error_var],
@@ -132,7 +147,7 @@ def conf_reml(fig: plt.Figure, data, test=False):
     return form
 
 
-def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
+def conf_two_stage(fig: plt.Figure, data, test=False):
     """
     Fitting and plotting using two-stage strategy
     :param fig:
@@ -140,6 +155,9 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
     :param test:
     :return:
     """
+    # validate input data
+    valid = func.validate_data(data)
+
     # degree of bases
     p = ui.Integer(name='Degree of bases:', value=4)
     # order of penalty
@@ -154,11 +172,11 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
         Display submitted form information and anything else that can be used
           for testing purposes
         """
-        clean, out = func.Outlier(data, thresh1.value, thresh2.value)
+        clean, out = func.Outlier(valid, thresh1.value, thresh2.value)
 
         # GCV fit of original data
         gcv_o = func.fit_gcv(
-            data=data, p=p.value, q=q.value, num=num.value
+            data=valid, p=p.value, q=q.value, num=num.value
         )
         # GCV fit of clean data
         gcv_c = func.fit_gcv(
@@ -170,7 +188,7 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
 
         xpred1, ypred1, std_t1 = gcv_o['xpred'], gcv_o['ypred'], gcv_o['std_t']
         plot(ax1,
-             points=[('Data', data), ],
+             points=[('Data', valid), ],
              lines=[('With full data', xpred1, ypred1), ],
              fill=[
                  ('95% t-interval',
@@ -208,7 +226,12 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
         # Clear cell output once another plot request is received
         clear_output(wait=True)
 
-        return fig
+        out_data = {'original_gcv': gcv_o, 'clean_gcv': gcv_c}
+        results = {
+            'data': out_data, 'fig': fig
+        }
+
+        return results
 
     form = widgets.FormConfigIO(
         [p, q, num, thresh1, thresh2],
@@ -222,6 +245,9 @@ def conf_two_stage(fig: plt.Figure, data: np.ndarray, test=False):
 
 def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
     """Fitting and plotting using two-stage strategy"""
+    # validate input data
+    valid = func.validate_data(data)
+
     # degree of bases
     p = ui.Integer(name='Degree of bases:', value=4)
     # order of penalty
@@ -241,7 +267,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
 
         # Fit the REML model
         reml = func.fit_reml(
-            data=data,
+            data=valid,
             p=p.value,
             q=q.value,
             num=num.value,
@@ -250,7 +276,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
 
         xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
         plot(ax1,
-             points=[('Data', data), ],
+             points=[('Data', valid), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -265,10 +291,10 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
 
         C, D, lamb, Cpred = reml['C'], reml['D'], reml['lamb'], reml['Cpred']
         f_low, f_high = func.Inference_effects(
-            q.value, data, Cpred, C, lamb, D
+            q.value, valid, Cpred, C, lamb, D
         )
         plot(ax2,
-             points=[('Data', data), ],
+             points=[('Data', valid), ],
              lines=[
                  ('Low freq. signal', xpred, f_low),
                  ('High freq. signal', xpred, f_high),
@@ -286,7 +312,12 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
         display(fig)
         clear_output(wait=True)
 
-        return fig
+        out_data = {'reml': reml, 'freq_low': f_low, 'freq_high': f_high}
+        results = {
+            'data': out_data, 'fig': fig
+        }
+
+        return results
 
     form = widgets.FormConfigIO(
         [p, q, num, lambda_var, error_var],
@@ -348,3 +379,19 @@ def plot(
 
     ax.legend(fontsize=18)
     ax.grid(True)
+
+
+if __name__ == '__main__':
+    d = widgets.DataSelector()
+    _, btn_sample, _ = d.children[0].children
+    btn_sample.click()
+
+    btn_submit, _ = d.children[2].children
+    btn_submit.click()
+
+    f1 = plt.figure(figsize=(12, 7))
+    form = conf_gcv(f1, d.data)
+
+    btn_plot = form.children[3].children[0]
+    btn_plot.click()
+

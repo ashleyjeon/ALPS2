@@ -4,6 +4,7 @@ from IPython.display import display, Javascript
 from hublib import ui
 from pathlib import Path
 import files
+from typing import List
 
 
 class DataSelector(widg.VBox):
@@ -106,7 +107,9 @@ class DataSelector(widg.VBox):
 
             if (v is not None) and (len(v) > 0):
                 for name, meta in v.items():
-                    files.dump_array(name, meta['content'], bytes=True)
+                    # files.dump_data() requires a dictionary
+                    d = {name: meta['content']}
+                    files.dump_data(files.DIR_SESS_TDATA, d, bytes=True)
                     btn_own.click() # reload list of existing files
 
         btn_up.observe(upload, names='value')
@@ -117,19 +120,26 @@ class DataSelector(widg.VBox):
         )
 
 
-class BtnImgDownload(widg.HBox):
-    """Button to download images"""
-    def __init__(self):
+class ResultsDownloader(widg.HBox):
+    """
+    Abstract widget object for downloading some data with a field for specifying filename and a
+      dropdown filetype selection
+    """
+    def __init__(self,
+                 placeholder_filename: str,
+                 download_formats: List,
+                 download_name: str):
         txt_filename = widg.Text(
             value='',
-            placeholder='enter file name',
+            placeholder=placeholder_filename,
         )
         drop_file_format = widg.Dropdown(
-            options=files.FORMAT_IMG_OUT,
-            value=files.FORMAT_IMG_OUT[0]
+            options=download_formats,
+            value=download_formats[0]
         )
         btn_down = widg.Button(
-            description='Download',
+            description=download_name,
+            icon='download',
             disabled=True
         )
 
@@ -149,21 +159,9 @@ class BtnImgDownload(widg.HBox):
         btn_down = self.children[2]
         btn_down.on_click(func)
 
-    def download(self, fig: plt.Figure):
-        """Download image to browser"""
-        txt_filename = self.children[0]
-        drop_file_format = self.children[1]
-
-        filename = f'{txt_filename.value}.{drop_file_format.value}'
-        path = files.upload_plt_plot(fig, filename)
-        # need to make path relative to '.' for javascript windows
-        path = files.get_path_relative_to(path, files.DIR_SRC).as_posix()
-
-        # trigger a browser popup that will download the image to browser
-        js = Javascript(
-            f"window.open('{path}', 'Download', '_blank')"
-        )
-        display(js)
+    def download(self, **kwargs):
+        """Function that downloads respective data"""
+        raise NotImplementedError('Abstract method; must override!')
 
     def disable(self):
         """
@@ -196,6 +194,60 @@ class BtnImgDownload(widg.HBox):
             self.layout.display = 'block'
 
 
+class PlotDownloader(ResultsDownloader):
+    """Button to download plots"""
+    def __init__(self):
+        super().__init__(
+            placeholder_filename='enter plot filename',
+            download_formats=files.FORMAT_IMG_OUT,
+            download_name='Plot'
+        )
+
+    def download(self, fig: plt.Figure):
+        """Download image to browser"""
+        txt_filename = self.children[0]
+        drop_file_format = self.children[1]
+
+        filename = f'{txt_filename.value}.{drop_file_format.value}'
+        path = files.upload_plt_plot(fig, filename)
+        # need to make path relative to '.' for javascript windows
+        path = files.get_path_relative_to(path, files.DIR_SRC).as_posix()
+
+        # trigger a browser popup that will download the image to browser
+        js = Javascript(
+            f"window.open('{path}', 'Download', '_blank')"
+        )
+        display(js)
+
+
+class DataDownloader(ResultsDownloader):
+    """Widget for transformed data downloading"""
+    def __init__(self):
+        super().__init__(
+            placeholder_filename='enter output data filename',
+            download_formats=files.FORMAT_DATA,
+            download_name='Data'
+        )
+
+    def download(self, data: dict):
+        """Download @data to host results directory and to user system"""
+        txt_filename = self.children[0]
+        drop_file_format = self.children[1]
+
+        fname = f'{txt_filename.value}.{drop_file_format.value}'
+        fpath = files.DIR_SESS_RESULTS / fname
+        files.dump_data(files.DIR_SESS_RESULTS, data, bytes=False)
+
+        # need to make path relative to '.' for javascript windows
+        path = files.get_path_relative_to(fpath, files.DIR_SRC).as_posix()
+
+        # trigger a browser popup that will download the image to browser
+        js = Javascript(
+            f"window.open('{path}', 'Download', '_blank')"
+        )
+        display(js)
+
+
 class FormConfigIO(ui.Form):
     """
     Extension of hublib.ui.Form which appends submit and download buttons,
@@ -219,12 +271,16 @@ class FormConfigIO(ui.Form):
         :param kwargs:
         """
         btn_submit = widg.Button(description=submit_text)
-        btn_down = BtnImgDownload()
+        down_plot = PlotDownloader()
+        down_data = DataDownloader()
         if download:
-            btn_down.disable() # nothing to download yet; disable
+            down_plot.disable() # nothing to download yet; disable
+            down_data.disable()  # nothing to download yet; disable
         else:
-            btn_down.hide() # @download == False
-        box_btns = widg.HBox([btn_submit, btn_down])
+            down_plot.hide() # @download == False
+            down_data.hide()  # @download == False
+        box_down = widg.VBox([down_plot, down_data])
+        box_btns = widg.HBox([btn_submit, box_down])
         out_test = widg.Output()
 
         # @update_func output
@@ -250,16 +306,27 @@ class FormConfigIO(ui.Form):
 
             # if @update_func returns some results, enable downloading
             if output is None:
-                btn_down.disable()
+                down_plot.disable()
+                down_data.disable()
             else:
-                btn_down.enable()
+                down_plot.enable()
+                down_data.enable()
 
-        def save(b):
+        def save_plot(b):
             nonlocal output
-            btn_down.download(output)
+            fig = output.get('fig')
+
+            down_plot.download(fig)
+
+        def save_data(b):
+            nonlocal output
+
+            data = output.get('data')
+            down_data.download(data)
 
         btn_submit.on_click(update)
-        btn_down.on_click(save)
+        down_plot.on_click(save_plot)
+        down_data.on_click(save_data)
 
         wlist.extend([box_btns, out_test])
         super().__init__(wlist, **kwargs)

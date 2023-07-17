@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-FORMAT_DATA = ('.p', '.csv', '.txt')
+FORMAT_DATA = ('.p', '.csv')
 FORMAT_IMG_OUT = ('png', 'jpg', 'pdf')
 
 DIR_PROJECT = Path(__file__).parent.parent
@@ -96,42 +96,58 @@ def load_csv(path: Path) -> pd.DataFrame:
     return data
 
 
-def dump_array(filename, data, bytes=False):
-    """Upload data to the user save (DIR_SESS_TDATA) directory"""
-    fname = Path(filename)
-    ftype = fname.suffix
+def dump_data(dir_path: Path, data: dict, bytes=False):
+    """
+    Upload @data to @dir_path
 
-    if ftype not in FORMAT_DATA:
-        raise ValueError(f'Invalid data type ({ftype}): {filename}')
+    :param dir_path: Path to a *directory*
+    :param data: dictionary of {file name: data} key-value pairs
+    :param bytes: is the passed data in bytes format
+    """
+    if not dir_path.is_dir():
+        raise ValueError(f'{dir_path} must be a directory!')
 
-    if ftype == '.p':
-        dump_pickle_arr(filename, data, bytes)
-    elif ftype == '.csv':
-        dump_csv_arr(filename, data, bytes)
+    if bytes:
+        for fname, d in data.items():
+            ftype = Path(fname).suffix
+
+            if ftype == '.p':
+                dump_pickle_bytes(dir_path / fname, d)
+            elif ftype == '.csv':
+                dump_csv_bytes(dir_path / fname, d)
+            else:
+                raise ValueError(
+                    f'File name must specify a format eg. ".csv" (passed: {fname})'
+                )
+
+    else:
+        merged_data = pd.DataFrame()
+        for fname, d in data.items():
+            raise ValueError(d)
+            # TODO 7/17: *** properly transfer dict data to dataframe (run above) ***
+
+            df = pd.DataFrame.from_dict(d, orient='columns')
+            merged_data = pd.concat([merged_data, df], axis=1)
+
+            merged_data.head()
 
 
-def dump_csv_arr(filename, data, bytes=False):
+def dump_csv_bytes(file_path: Path, data):
     """Save @data as a CSV file"""
-    if len(Path(filename).suffix) == 0:
-        filename = filename + '.csv'
-
-    fp = DIR_SESS_TDATA / filename
-
     try:
-        if bytes:
-            # bytes -> list of strings
-            data = data.decode('utf-8').splitlines()
+        # bytes -> list of strings
+        data = data.decode('utf-8').splitlines()
 
-        with open(fp, 'w', newline='') as f:
+        with open(file_path, 'w', newline='') as f:
             writer = csv.writer(f, delimiter=',')
             for entry in data:
-                d = entry.split(',')
-                writer.writerow(d)
+                row = entry.split(',')
+                writer.writerow(row)
     except ValueError as e:
         raise ValueError(f'Passed data: {data}') from e
 
 
-def dump_pickle_arr(filename, data, bytes=False):
+def dump_pickle_bytes(filename, data):
     """
     Pickle data to DIR_SESS_DATA; specify whether data source is @byte
     """
@@ -139,13 +155,8 @@ def dump_pickle_arr(filename, data, bytes=False):
     try:
         mode = 'wb' if bytes else 'w'
         with open(path, mode) as f:
-            if bytes:
-                d = pickle.loads(data)
-                pickle.dump(d, f)
-            else:
-                # TODO 6/29: might not work as inteded; haven't tested for
-                #   non-byte objects
-                pickle.dump(data, f)
+            d = pickle.loads(data)
+            pickle.dump(d, f)
 
     except ValueError:
         raise
@@ -163,9 +174,5 @@ def upload_plt_plot(fig: plt.Figure, filename: str):
     return path
 
 
-# if __name__ == '__main__':
-#     dd = widg.Dropdown(
-#         options=['1', '2'],
-#         description='Hello:'
-#     )
-#     dd
+if __name__ == '__main__':
+    pass
