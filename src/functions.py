@@ -23,7 +23,7 @@
 ## 1: Var_bounds(Data,B,B_dat,theta,P,lamb,confidence = 0.95)
 ## 2: Smoothing_cost(lamb,Data,B,q,c,choice)
 ## 3: Smoothing_par(Data,B,q,c,lamb,choice)
-## 4: full_search_nk(Data,p,q)
+## 4: Myopic_search(Data,p,q)
 
 ## Mixed Model Formulation with model fitting through Restricted Maximum Likelihood
 ## 1: REML(par,Data,X,Z,sigma)
@@ -90,7 +90,7 @@ def fit_gcv(
     :param num: number of observations (TODO 6/21: verify)
     :return:
     """
-    [n, lamb, sigmasq] = full_search_nk(data, p, q)
+    [n, lamb, sigmasq] = Myopic_search(data, p, q)
     c = n + p
     U = Kno_pspline_opt(data, p, n)
     B = Basis_Pspline(n, p, U, data[:, 0])
@@ -628,8 +628,22 @@ def Smoothing_par(Data, B, q, c, lamb, choice):
     return lam
 
 
-def full_search_nk(Data, p, q):
+def Myopic_search(Data, p, q):
     ## Objective: Compute Optimal number of sections for given data and corresponding optimal lambda
+    ## Original ALPS used a full search algorithm, modified to perform a myopic search
+    #   - Performs a myopic search that loops until the gcv statistic 
+    #     is worse. Checks only half the data set;
+    #     The loop is terminated when we've gone through the entire upper half
+    #     of the dataset or if we've reached a minimum twice.
+    #   - The first minimum is usually the first n (in this case Data.shape[0]/2),
+    #     thus to prevent the loop—that searches for the optimal n and 
+    #     lambda— from terminating early, we don't count it as the first minimum 
+    #     that is to be used for comparison.
+    # 
+    #   - first_min saves the first minimum gcv reached, and this is compared with 
+    #     the second minimum gcv to perform a myopic search that determines the 
+    #     number of knots and lambda
+   
     ## Input
     ## 1: Data: dataset with dimensions: number of points x 2
     ## 2: p: degree of bases
@@ -640,25 +654,49 @@ def full_search_nk(Data, p, q):
     ## 2. Opt_lam: Corresponding optimal lambda
     ## 3: sigmasq: Fitting Variance
 
-    n = 1  ## number of sections on the curve
+    n = int(Data.shape[0]/2)  ## number of sections on the curve
     inc = 1
     fact = 1
     choice = 2  ### always using GCV for now
     comp = 1.0e+9
-    # while n<Data.shape[0]-p-1:
-    while n < Data.shape[0]:
-        c = n + p
-        U = Kno_pspline_opt(Data, p, n)
-        B = Basis_Pspline(n, p, U, Data[:, 0])
-        lamb = 0.1
-        lam = Smoothing_par(Data, B, q, c, lamb, choice)
-        # print(lam.x[0],lam.fun)
-        if lam.fun < comp:
-            comp = lam.fun
-            opt_n = n
-            opt_lam = lam.x[0]
+    lamb = 0.1
+   
+    first_min = {'comp':comp, 'opt_n':n, 'opt_lam':0.1, 'empty': True}
+    num_times = 0  
 
-        n = n + 1
+
+    while (n < Data.shape[0]):
+        c = n+p
+        U = Kno_pspline_opt(Data,p,n) # built knot vector
+        B = Basis_Pspline(n,p,U,Data[:,0])
+        lam = Smoothing_par(Data,B,q,c,lamb,choice) # gcv coeff ? 
+
+        # number of knots (number of sections) that produce the smallest gcv 
+      
+        if lam.fun<comp:    # finding minimum
+            comp = lam.fun # gcv statistic
+            opt_n = n
+            opt_lam = lam.x[0] # opt lambda
+
+            # embed()
+    
+            # Saves the first minimum (makes sure to exclude the first data point)
+            # if (n != 1 and num_times == 1):
+            if (n != int(Data.shape[0]/2) and num_times == 1):
+                first_min.update({'comp': comp, 'opt_n': n, 
+                                   'opt_lam': lam.x[0], 'empty': False})
+            num_times += 1
+
+            # Compares the second minimum to the first minimum
+            if(2 < num_times and first_min['empty'] == False):
+                if (first_min['comp'] < comp and first_min['opt_n'] < opt_n 
+                                            and first_min['opt_lam'] < opt_lam):
+                    comp = first_min['comp']
+                    opt_n = first_min['opt_n']
+                    opt_lam = first_min['opt_lam']
+                
+                break
+        n += 1
 
     ## Computing sig
     c = opt_n + p
@@ -852,7 +890,7 @@ def Outlier(Data, thresh1, thresh2):
 
     p = 4
     q = 2
-    [n, lamb, sigmasq] = full_search_nk(Data, p, q)
+    [n, lamb, sigmasq] = Myopic_search(Data, p, q)
     c = n + p
     U = Kno_pspline_opt(Data, p, n)
     B = Basis_Pspline(n, p, U, Data[:, 0])
@@ -881,7 +919,7 @@ def Outlier(Data, thresh1, thresh2):
                 Dat_temp.append([Data[h, 0], Data[h, 1]])
 
         Dat_temp = np.array(Dat_temp)
-        [n, lamb, sigmasq] = full_search_nk(Dat_temp, p, q)
+        [n, lamb, sigmasq] = Myopic_search(Dat_temp, p, q)
         c = n + p
         U = Kno_pspline_opt(Dat_temp, p, n)
         B = Basis_Pspline(n, p, U, Dat_temp[:, 0])
@@ -906,7 +944,7 @@ def Outlier(Data, thresh1, thresh2):
 
     if len(point) == 0:
         Dat_temp = Data
-        [n, lamb, sigmasq] = full_search_nk(Dat_temp, p, q)
+        [n, lamb, sigmasq] = Myopic_search(Dat_temp, p, q)
         c = n + p
         U = Kno_pspline_opt(Dat_temp, p, n)
         B = Basis_Pspline(n, p, U, Dat_temp[:, 0])
