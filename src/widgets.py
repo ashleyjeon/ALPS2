@@ -55,7 +55,7 @@ class DataSelector(widg.VBox):
             samples = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
                 for p in Path(files.DIR_SAMPLE_DATA).iterdir()
-                if p.suffix in files.FORMAT_DATA
+                if p.suffix in files.FORMAT_DATA_IN
             ]
             sel_file.options = samples
 
@@ -69,7 +69,7 @@ class DataSelector(widg.VBox):
             personal = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
                 for p in Path(files.DIR_SESS_TDATA).iterdir()
-                if p.suffix in files.FORMAT_DATA
+                if p.suffix in files.FORMAT_DATA_IN
             ]
             sel_file.options = personal
 
@@ -109,7 +109,7 @@ class DataSelector(widg.VBox):
                 for name, meta in v.items():
                     # files.dump_data() requires a dictionary
                     d = {name: meta['content']}
-                    files.dump_data(files.DIR_SESS_TDATA, d, bytes=True)
+                    files.dump_data(files.DIR_SESS_TDATA / name, d, bytes=True)
                     btn_own.click() # reload list of existing files
 
         btn_up.observe(upload, names='value')
@@ -225,7 +225,7 @@ class DataDownloader(ResultsDownloader):
     def __init__(self):
         super().__init__(
             placeholder_filename='enter output data filename',
-            download_formats=files.FORMAT_DATA,
+            download_formats=files.FORMAT_DATA_OUT,
             download_name='Data'
         )
 
@@ -236,7 +236,7 @@ class DataDownloader(ResultsDownloader):
 
         fname = f'{txt_filename.value}.{drop_file_format.value}'
         fpath = files.DIR_SESS_RESULTS / fname
-        files.dump_data(files.DIR_SESS_RESULTS, data, bytes=False)
+        files.dump_data(fpath, data, bytes=False)
 
         # need to make path relative to '.' for javascript windows
         path = files.get_path_relative_to(fpath, files.DIR_SRC).as_posix()
