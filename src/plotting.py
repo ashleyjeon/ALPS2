@@ -30,7 +30,7 @@ def conf_gcv(fig: plt.Figure, data, test=False):
         Display submitted form information and anything else that can be used
           for testing purposes
         """
-        gcv = func.fit_gcv(
+        gcv = func.fit_gcv_myopic(
             data=valid,
             p=p.value,
             q=q.value,
@@ -175,11 +175,11 @@ def conf_two_stage(fig: plt.Figure, data, test=False):
         clean, out = func.Outlier(valid, thresh1.value, thresh2.value)
 
         # GCV fit of original data
-        gcv_o = func.fit_gcv(
+        gcv_o = func.fit_gcv_myopic(
             data=valid, p=p.value, q=q.value, num=num.value
         )
         # GCV fit of clean data
-        gcv_c = func.fit_gcv(
+        gcv_c = func.fit_gcv_myopic(
             data=clean, p=p.value, q=q.value, num=num.value
         )
 
@@ -358,11 +358,12 @@ def plot(
 
     for label, d in points:
         if d.shape[0] == 0:
-            ax.scatter([], [], label=label, s=100) # random color
+            # ashley: changed the color to red for better visibility
+            ax.scatter([], [], label=label, s=100, color='r') # random color
             continue
 
         # ax.scatter(d[1][:, 0], d[1][:, 1], label=d[0], color='r', s=100)
-        ax.scatter(d[:, 0], d[:, 1], label=label, s=100) # random color
+        ax.scatter(d[:, 0], d[:, 1], label=label, s=100, color='r') # random color
 
     if fill is not None:
         for label, x, lb, ub in fill:

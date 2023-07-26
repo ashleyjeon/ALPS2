@@ -24,6 +24,7 @@
 ## 2: Smoothing_cost(lamb,Data,B,q,c,choice)
 ## 3: Smoothing_par(Data,B,q,c,lamb,choice)
 ## 4: Myopic_search(Data,p,q)
+## 5: full_search_nk(Data,p,q)
 
 ## Mixed Model Formulation with model fitting through Restricted Maximum Likelihood
 ## 1: REML(par,Data,X,Z,sigma)
@@ -76,7 +77,7 @@ def validate_data(data):
         )
 
 
-def fit_gcv(
+def fit_gcv_myopic(
         data: np.ndarray,
         p: int,
         q: int,
@@ -91,6 +92,37 @@ def fit_gcv(
     :return:
     """
     [n, lamb, sigmasq] = Myopic_search(data, p, q)
+    c = n + p
+    U = Kno_pspline_opt(data, p, n)
+    B = Basis_Pspline(n, p, U, data[:, 0])
+    P = Penalty_p(q, c)
+    theta = np.linalg.solve(B.T.dot(B) + lamb * P,
+                            B.T.dot(data[:, 1].reshape(-1, 1))
+                            )
+    ### Getting mean of the prediction
+    xpred = np.linspace(data[0, 0], data[-1, 0], num)
+    Bpred = Basis_Pspline(n, p, U, xpred)
+    ypred1 = Bpred.dot(theta)
+    std_t1, std_n1 = Var_bounds(data, Bpred, B, theta, P, lamb)
+
+    return {'xpred': xpred, 'ypred': ypred1,
+            'std_t': std_t1, 'std_n': std_n1}
+
+def fit_gcv(
+        data: np.ndarray,
+        p: int,
+        q: int,
+        num: int):
+    """
+    Fit ALPS model using GCV
+    :param ax: matplotlib Axes
+    :param data: array of data
+    :param p: degree of bases
+    :param q: order of penalty
+    :param num: number of observations (TODO 6/21: verify)
+    :return:
+    """
+    [n, lamb, sigmasq] = full_search_nk(data, p, q)
     c = n + p
     U = Kno_pspline_opt(data, p, n)
     B = Basis_Pspline(n, p, U, data[:, 0])
@@ -629,21 +661,23 @@ def Smoothing_par(Data, B, q, c, lamb, choice):
 
 
 def Myopic_search(Data, p, q):
-    ## Objective: Compute Optimal number of sections for given data and corresponding optimal lambda
-    ## Original ALPS used a full search algorithm, modified to perform a myopic search
+    ## Objective: Compute Optimal number of sections for given data and 
+    #             corresponding optimal lambda
+    ## Original ALPS used full search algorithm, modified to myopic search
     #   - Performs a myopic search that loops until the gcv statistic 
     #     is worse. Checks only half the data set;
     #     The loop is terminated when we've gone through the entire upper half
     #     of the dataset or if we've reached a minimum twice.
-    #   - The first minimum is usually the first n (in this case Data.shape[0]/2),
-    #     thus to prevent the loop—that searches for the optimal n and 
+    #   - The first minimum is usually the first n (in this case 
+    #     Data.shape[0]/2), thus to prevent the loop—that searches for the 
+    #     optimal n and 
     #     lambda— from terminating early, we don't count it as the first minimum 
     #     that is to be used for comparison.
     # 
-    #   - first_min saves the first minimum gcv reached, and this is compared with 
-    #     the second minimum gcv to perform a myopic search that determines the 
-    #     number of knots and lambda
-   
+    #   - first_min saves the first minimum gcv reached, and this is compared 
+    #     with the second minimum gcv to perform a myopic search that determines
+    #     the number of knots and lambda
+
     ## Input
     ## 1: Data: dataset with dimensions: number of points x 2
     ## 2: p: degree of bases
@@ -661,39 +695,35 @@ def Myopic_search(Data, p, q):
     comp = 1.0e+9
     lamb = 0.1
    
-    first_min = {'comp':comp, 'opt_n':n, 'opt_lam':0.1, 'empty': True}
+    first_min = {'comp': comp, 'opt_n': n, 'opt_lam': 0.1, 'empty': True}
     num_times = 0  
-
 
     while (n < Data.shape[0]):
         c = n+p
-        U = Kno_pspline_opt(Data,p,n) # built knot vector
-        B = Basis_Pspline(n,p,U,Data[:,0])
-        lam = Smoothing_par(Data,B,q,c,lamb,choice) # gcv coeff ? 
+        U = Kno_pspline_opt(Data, p, n) # built knot vector
+        B = Basis_Pspline(n, p, U, Data[:,0])
+        lam = Smoothing_par(Data, B, q, c, lamb, choice) # gcv coeff 
 
         # number of knots (number of sections) that produce the smallest gcv 
-      
-        if lam.fun<comp:    # finding minimum
+        if lam.fun < comp:    # finding minimum
             comp = lam.fun # gcv statistic
             opt_n = n
             opt_lam = lam.x[0] # opt lambda
-
-            # embed()
     
-            # Saves the first minimum (makes sure to exclude the first data point)
-            # if (n != 1 and num_times == 1):
+            # Saves the first minimum
             if (n != int(Data.shape[0]/2) and num_times == 1):
-                first_min.update({'comp': comp, 'opt_n': n, 
-                                   'opt_lam': lam.x[0], 'empty': False})
+                first_min.update({'comp': comp, 'opt_n': n, 'opt_lam': lam.x[0], 
+                                  'empty': False})
             num_times += 1
 
             # Compares the second minimum to the first minimum
-            if(2 < num_times and first_min['empty'] == False):
-                if (first_min['comp'] < comp and first_min['opt_n'] < opt_n 
-                                            and first_min['opt_lam'] < opt_lam):
-                    comp = first_min['comp']
-                    opt_n = first_min['opt_n']
-                    opt_lam = first_min['opt_lam']
+            if (2 < num_times and first_min['empty'] == False):
+                if (first_min['comp'] < comp and 
+                    first_min['opt_n'] < opt_n and 
+                    first_min['opt_lam'] < opt_lam):
+                        comp = first_min['comp']
+                        opt_n = first_min['opt_n']
+                        opt_lam = first_min['opt_lam']
                 
                 break
         n += 1
@@ -714,6 +744,60 @@ def Myopic_search(Data, p, q):
     sigmasq = (nr.T.dot(nr)) / (df_res)
     sigmasq = sigmasq[0][0]
     return [opt_n, opt_lam, sigmasq]
+
+
+
+def full_search_nk(Data,p,q):
+    ## Objective: Compute Optimal number of sections for given data and corresponding optimal lambda
+    ## Input
+    ## 1: Data: dataset with dimensions: number of points x 2
+    ## 2: p: degree of bases
+    ## 3: q: order of penalty
+    
+    ## Output
+    ## 1. Opt_n: Optimal number of sections
+    ## 2. Opt_lam: Corresponding optimal lambda
+    ## 3: sigmasq: Fitting Variance
+    
+    
+    n = 1 ## number of sections on the curve
+    inc = 1
+    fact = 1
+    choice = 2  ### always using GCV for now
+    comp = 1.0e+9
+    #while n<Data.shape[0]-p-1:
+    while n < Data.shape[0]:
+        c = n+p
+        U = Kno_pspline_opt(Data, p, n)
+        B = Basis_Pspline(n, p, U, Data[:,0])
+        lamb = 0.1
+        lam = Smoothing_par(Data, B, q, c, lamb, choice)
+        #print(lam.x[0],lam.fun)
+        if lam.fun < comp:
+            # print("lam.fun is: {lam.fun} and comp is {comp}")
+            # print(f"what is n: {n} and what is lam.fun {lam.fun}")
+            comp = lam.fun
+            opt_n = n
+            opt_lam = lam.x[0]
+        n = n+1
+
+    ## Computing sig
+    c = opt_n+p
+    P = opt_lam*Penalty_p(q, c)
+    U = Kno_pspline_opt(Data, p, opt_n)
+    B_dat = Basis_Pspline(opt_n, p, U, Data[:,0])
+    theta = linalg.solve(B_dat.T.dot(B_dat) + P,
+                         B_dat.T.dot(Data[:,1].reshape(-1,1))
+                         )
+    nr = (Data[:,1].reshape(-1,1) - B_dat.dot(theta)).reshape(-1,1)
+ 
+    term = B_dat.dot(inv(B_dat.T.dot(B_dat) + P).dot(B_dat.T))
+    n = Data.shape[0]
+    df_res = n - 2*trace(term) + trace(term.dot(term.T))
+    sigmasq = (nr.T.dot(nr))/(df_res)
+    sigmasq = sigmasq[0][0]
+    return [opt_n, opt_lam, sigmasq]
+
 
 
 ########################### ########################### ###########################
