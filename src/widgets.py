@@ -118,6 +118,7 @@ class DataSelector(widg.VBox):
             [box_options, sel_file, box_pick, out_selected],
             **kwargs
         )
+        display(self)
 
 
 class ResultsDownloader(widg.HBox):
@@ -330,6 +331,7 @@ class FormConfigIO(ui.Form):
 
         wlist.extend([box_btns, out_test])
         super().__init__(wlist, **kwargs)
+        display(self)
 
 
 if __name__ == '__main__':
