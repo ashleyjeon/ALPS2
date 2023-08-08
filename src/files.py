@@ -22,7 +22,7 @@ DIR_SAMPLE_DATA = DIR_PROJECT / 'data'
 def setup_local(data_dir: Path):
     """Create the temp and out directories for locally stored data"""
     temp = data_dir / 'temp'
-    out = data_dir / 'out'
+    out = data_dir / 'results'
     temp.mkdir(exist_ok=True)
     out.mkdir(exist_ok=True)
 
@@ -32,17 +32,18 @@ def setup_local(data_dir: Path):
 def setup_remote(data_dir: Path):
     """Create temp directory in ghub's current session"""
     temp = data_dir / 'temp'
+    out = data_dir / 'results'
     temp.mkdir(exist_ok=True)
+    out.mkdir(exist_ok=True)
 
-    return temp
+    return temp, out
 
 
 try:
     # Ghub server directories generated each time a tool is run
     SESSION = os.environ['SESSION']
     DIR_SESS_DATA = Path(os.environ['SESSIONDIR'])
-    DIR_SESS_TDATA = setup_remote(DIR_SESS_DATA)
-    DIR_SESS_RESULTS = Path(os.environ['RESULTSDIR'])
+    DIR_SESS_TDATA, DIR_SESS_RESULTS = setup_remote(DIR_SESS_DATA)
 except KeyError:
     # Local path alternatives
     SESSION = None
@@ -53,7 +54,7 @@ except KeyError:
 def clear_temp():
     """Clear the temp data directory -- as per official Ghub recommendations"""
     for file in DIR_SESS_TDATA.iterdir():
-        file.unlink()
+        file.rmdir() if file.is_dir() else file.unlink()
 
 
 def get_path_relative_to(a: Path, b: Path):

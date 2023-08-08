@@ -4,24 +4,25 @@ channels:
   - defaults
 dependencies:
   - python=3.7.7
-  - ipywidgets=7.5.1
-  - python-decouple
   - gcc
-  - pandas=1.1.3
-  - plotly=4.11.0
-  - matplotlib=3.3.2
-  - notebook
+  - notebook=5.7.8=py37_0
   - regex
-  - numpy=1.19.1
+  - numpy=1.19.1=py37hbc911f0_0
+  - numpy-base=1.19.1=py37hfa32c7d_0
+  - numpydoc=0.8.0=py37_0
   # scipy<1.5 because of boundary errors that occured in 1.5.x versions
   #  but didn't exist prior and were patched in >1.8
   - scipy<1.5
-  - scikit-learn
-  - numexpr
+  - scikit-learn=0.20.1=py37hd81dba3_0
+  - numexpr=2.6.8=py37h9e4a6bb_0
   - openblas
-  - pytest=4.4.1
   - libblas=*=*openblas
-  - openpyxl
+  - openpyxl=2.5.12=py37_0
   - pip
   - pip:
-    - hublib
+    - hublib==0.9.95
+    - pytest==4.4.1
+    - plotly==4.11.0
+    - pandas==1.1.3
+    - matplotlib==3.3.2
+    - ipywidgets==7.5.1
