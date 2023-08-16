@@ -173,7 +173,6 @@ class DataSelector(widg.VBox):
             [box_options, sel_file, box_pick, out_selected],
             **kwargs
         )
-        display(self)
 
     @property
     def data(self):
