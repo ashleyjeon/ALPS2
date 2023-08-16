@@ -390,7 +390,7 @@ if __name__ == '__main__':
     btn_submit.click()
 
     f1 = plt.figure(figsize=(12, 7))
-    form = conf_gcv(f1, d.data)
+    form = conf_gcv(f1, d._data)
 
     btn_plot = form.children[3].children[0]
     btn_plot.click()

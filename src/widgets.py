@@ -1,10 +1,61 @@
 import ipywidgets as widg
 import matplotlib.pyplot as plt
-from IPython.display import display, Javascript
+from numpy import ndarray
+from pandas import DataFrame
+from IPython.display import display, Javascript, clear_output
+# TODO 8/15: try to migrate away from hublib; unnecessary
 from hublib import ui
 from pathlib import Path
-import files
 from typing import List
+from enum import Enum
+
+import files
+import plotting
+
+
+class DataDisplay(widg.VBox):
+    """
+    Widget connecting .DataSelector and .FormConfigIO
+    """
+    class FuncType(Enum):
+        GCV = 0
+        REML = 1
+        TWO_STAGE = 2
+        MMF = 3
+
+    def __init__(self, func_type: FuncType, fig: plt.Figure, **kwargs):
+        """
+        :param func_type:
+        :param fig:
+        """
+        sel_data = DataSelector()
+        display(sel_data)
+
+        def observe_data(data):
+            self.configure(func_type, fig, data)
+
+        sel_data.m_observe(observe_data)
+
+        children = (sel_data,)
+        super().__init__(children, **kwargs)
+
+    def configure(self, func_type, fig, data):
+        """Initialize FormConfigIO with updated @data"""
+        if func_type == self.FuncType.GCV:
+            form_data = plotting.conf_gcv(fig, data)
+        elif func_type == self.FuncType.REML:
+            form_data = plotting.conf_reml(fig, data)
+        elif func_type == self.FuncType.TWO_STAGE:
+            form_data = plotting.conf_two_stage(fig, data)
+        elif func_type == self.FuncType.MMF:
+            form_data = plotting.conf_mmf(fig, data)
+        else:
+            form_data = plotting.conf_gcv(fig, data)
+
+        clear_output(wait=True)
+
+        self.children = (self.children[0], form_data)
+        display(self)
 
 
 class DataSelector(widg.VBox):
@@ -16,8 +67,9 @@ class DataSelector(widg.VBox):
     OPTIONS = ['Sample', 'Personal']
 
     def __init__(self, **kwargs):
-        self.data = None
-        self.data_path: Path = None
+        self._data = None # getter/setter below
+        self._data_path: Path = None
+        self._callbacks = []
 
         # uploaded/selected data
         label_instr = widg.Label(value='Select data source:')
@@ -83,7 +135,7 @@ class DataSelector(widg.VBox):
             if (v is not None) and (len(v) > 0):
                 btn_submit.disabled = False
                 # save data path from project root
-                self.data_path = files.DIR_PROJECT / v
+                self._data_path = files.DIR_PROJECT / v
             else:
                 btn_submit.disabled = True
 
@@ -91,14 +143,17 @@ class DataSelector(widg.VBox):
 
         def submit(b):
             """Read data in @self.data_path"""
-            self.data = files.load_data(self.data_path)
+            self.data = files.load_data(self._data_path)
+            out_selected.clear_output()
 
             with out_selected:
-                print(f'Loaded data from: {self.data_path.name}\n'
-                      f'*** Access using "data" attribute of DataSelector. ***')
-                display(self.data)
+                print(f'Loaded data from: {self._data_path.name}\n'
+                      f'First 5 elements:')
 
-            out_selected.clear_output(wait=True)
+                if isinstance(self.data, DataFrame):
+                    display(self.data.head(5))
+                elif isinstance(self.data, ndarray):
+                    display(self.data[:5, :])
 
         btn_submit.on_click(submit)
 
@@ -119,6 +174,19 @@ class DataSelector(widg.VBox):
             **kwargs
         )
         display(self)
+
+    @property
+    def data(self):
+        return self._data
+    @data.setter
+    def data(self, val):
+        """Call observing functions"""
+        self._data = val
+        for cb in self._callbacks:
+            cb(self._data)
+
+    def m_observe(self, callback):
+        self._callbacks.append(callback)
 
 
 class ResultsDownloader(widg.HBox):

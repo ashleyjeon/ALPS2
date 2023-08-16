@@ -13,8 +13,14 @@ dependencies:
   # scipy<1.5 because of boundary errors that occured in 1.5.x versions
   #  but didn't exist prior and were patched in >1.8
   - scipy<1.5
+<<<<<<< HEAD
   - scikit-learn=0.20.1=py37hd81dba3_0
   - numexpr=2.6.8=py37h9e4a6bb_0
+=======
+  - appmode=0.5.0
+  - scikit-learn
+  - numexpr
+>>>>>>> c70afca (Configure for jupyter's appmode)
   - openblas
   - libblas=*=*openblas
   - openpyxl=2.5.12=py37_0
