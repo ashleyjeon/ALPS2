@@ -1,19 +1,11 @@
 #!/bin/sh
 
-# original contents of invoke script
-# /usr/bin/invoke_app "$@" -C rappture -t alps
+#
+# jupyter tool
+#
+/usr/bin/invoke_app "$@" -t alpsinteract \
+                         -C "start_jupyter -T -A @tool -t alpsinteract.ipynb" \
+                         -u anaconda-X \
+                         -r none \
+                         -w headless
 
-# invoke_app:
-# -C command to execute for starting the tool
-# -t tool name
-# -u use environment packages
-
-# start_jupyter:
-# -A Run in AppMode
-
-# For Jupyter Notebook:
-/usr/bin/invoke_app "$@" -C "start_jupyter -T @tool alps.ipynb" -t alps -u anaconda-6
-
-# For Jupyter Notebook on Debian 10:
-# Reference: https://vhub.org/kb/Development/deploy-styles-for-jupyter-tools
-#/usr/bin/invoke_app "$@" -C "start_jupyter -A -T @tool alps.ipynb" -t alps -u anaconda-6 -r none
