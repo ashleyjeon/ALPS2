@@ -28,10 +28,10 @@ def setup_local(data_dir: Path):
     return temp, out
 
 
-def setup_remote(sess_dir: Path, results_dir: Path):
+def setup_remote(sess_dir: Path):
     """Create temp directory in ghub's current session"""
     temp = sess_dir / 'temp'
-    out = results_dir / 'out'
+    out = sess_dir / 'out'
     temp.mkdir(exist_ok=True)
     out.mkdir(exist_ok=True)
 
@@ -44,7 +44,7 @@ try:
     DIR_SESS = Path(os.environ['SESSIONDIR'])
     DIR_RESULTS = Path(os.environ['RESULTSDIR'])
 
-    DIR_TEMP, DIR_OUT = setup_remote(DIR_SESS, DIR_RESULTS)
+    DIR_TEMP, DIR_OUT = setup_remote(DIR_SESS)
 except KeyError:
     # Local path alternatives
     SESSION = None
