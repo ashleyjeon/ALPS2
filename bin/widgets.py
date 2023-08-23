@@ -10,6 +10,7 @@ from enum import Enum
 
 import files
 import plotting
+import functions as func
 
 
 class DataDisplay(pwidg.VBox):
@@ -31,7 +32,16 @@ class DataDisplay(pwidg.VBox):
         display(sel_data)
 
         def observe_data(data):
-            self.configure(func_type, fig, data)
+            try:
+                # validate input data
+                valid = func.validate_data(data)
+            except:
+                # if data has been plotted before
+                if len(self.children) == 2:
+                    self.children = [self.children[0], ]
+                raise
+
+            self.configure(func_type, fig, valid)
 
         sel_data.m_observe(observe_data)
 
@@ -40,6 +50,7 @@ class DataDisplay(pwidg.VBox):
 
     def configure(self, func_type, fig, data):
         """Initialize FormConfigIO with updated @data"""
+
         if func_type == self.FuncType.GCV:
             form_data = plotting.conf_gcv(fig, data)
         elif func_type == self.FuncType.REML:
@@ -142,17 +153,19 @@ class DataSelector(pwidg.VBox):
 
         def submit(b):
             """Read data in @self.data_path"""
-            self.data = files.load_data(self._data_path)
+            data = files.load_data(self._data_path)
             out_selected.clear_output(wait=True)
 
             with out_selected:
                 print(f'Loaded data from: {self._data_path.name}\n'
                       f'First 5 elements:')
 
-                if isinstance(self.data, DataFrame):
-                    display(self.data.head(5))
-                elif isinstance(self.data, ndarray):
-                    display(self.data[:5, :])
+                if isinstance(data, DataFrame):
+                    display(data.head(5))
+                elif isinstance(data, ndarray):
+                    display(data[:5, :])
+
+            self.data = data
 
         btn_submit.on_click(submit)
 
@@ -567,9 +580,11 @@ class FormConfigIO(pwidg.VBox):
 
 if __name__ == '__main__':
     f1 = plt.figure(figsize=(12, 7))
-    d = DataSelector()
-    _, btn_sample, btn_own = d.children[0].children
-    btn_own.click()
+    disp = DataDisplay(DataDisplay.FuncType.GCV, f1)
+    btn_sample = disp.children[0].children[0].children[1]
+    btn_sample.click()
 
-    btn_submit, btn_up = d.children[2].children
+    sel = disp.children[0].children[1]
+    sel.value = sel.options[1]
+    btn_submit = disp.children[0].children[2].children[0]
     btn_submit.click()

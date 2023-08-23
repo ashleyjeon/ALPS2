@@ -15,9 +15,6 @@ def conf_gcv(fig: plt.Figure, data):
     :param test: (bool) show test output?
     :return:
     """
-    # validate input data
-    valid = func.validate_data(data)
-
     base_params = mwidg.ParamsForm(4, 2, 200)
 
     def update_plot():
@@ -26,7 +23,7 @@ def conf_gcv(fig: plt.Figure, data):
           for testing purposes
         """
         gcv = func.fit_gcv(
-            data=valid,
+            data=data,
             p=base_params.p_value,
             q=base_params.q_value,
             num=base_params.num_value
@@ -37,7 +34,7 @@ def conf_gcv(fig: plt.Figure, data):
         ax = fig.subplots()
 
         plot(ax,
-             points=[('Data', valid), ],
+             points=[('Data', data), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -74,9 +71,6 @@ def conf_reml(fig: plt.Figure, data):
     :param test:
     :return:
     """
-    # validate input data
-    valid = func.validate_data(data)
-
     params = mwidg.ParamsFormVar(5, 2, 200, 0.1, 0.1)
 
     def update_plot():
@@ -85,7 +79,7 @@ def conf_reml(fig: plt.Figure, data):
           for testing purposes
         """
         reml = func.fit_reml(
-            data=valid,
+            data=data,
             p=params.p_value,
             q=params.q_value,
             num=params.num_value,
@@ -98,7 +92,7 @@ def conf_reml(fig: plt.Figure, data):
         ax = fig.subplots()
 
         plot(ax,
-             points=[('Data', valid), ],
+             points=[('Data', data), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -135,8 +129,6 @@ def conf_two_stage(fig: plt.Figure, data):
     :param test:
     :return:
     """
-    # validate input data
-    valid = func.validate_data(data)
 
     params = mwidg.ParamsFormScale(4, 2, 300, 3.0, 1.2)
 
@@ -146,12 +138,12 @@ def conf_two_stage(fig: plt.Figure, data):
           for testing purposes
         """
         clean, out = func.Outlier(
-            valid, params.scale1_value, params.scale2_value
+            data, params.scale1_value, params.scale2_value
         )
 
         # GCV fit of original data
         gcv_o = func.fit_gcv(
-            data=valid,
+            data=data,
             p=params.p_value,
             q=params.q_value,
             num=params.num_value
@@ -169,7 +161,7 @@ def conf_two_stage(fig: plt.Figure, data):
 
         xpred1, ypred1, std_t1 = gcv_o['xpred'], gcv_o['ypred'], gcv_o['std_t']
         plot(ax1,
-             points=[('Data', valid), ],
+             points=[('Data', data), ],
              lines=[('With full data', xpred1, ypred1), ],
              fill=[
                  ('95% t-interval',
@@ -221,9 +213,6 @@ def conf_two_stage(fig: plt.Figure, data):
 
 def conf_mmf(fig: plt.Figure, data: np.ndarray):
     """Fitting and plotting using two-stage strategy"""
-    # validate input data
-    valid = func.validate_data(data)
-
     params = mwidg.ParamsFormVar(4, 3, 200, 0.1, 0.1)
 
     def update_plot():
@@ -236,7 +225,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray):
 
         # Fit the REML model
         reml = func.fit_reml(
-            data=valid,
+            data=data,
             p=params.p_value,
             q=params.q_value,
             num=params.num_value,
@@ -245,7 +234,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray):
 
         xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
         plot(ax1,
-             points=[('Data', valid), ],
+             points=[('Data', data), ],
              lines=[('Mean Prediction', xpred, ypred), ],
              fill=[
                  ('95% t-interval',
@@ -260,10 +249,10 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray):
 
         C, D, lamb, Cpred = reml['C'], reml['D'], reml['lamb'], reml['Cpred']
         f_low, f_high = func.Inference_effects(
-            params.q_value, valid, Cpred, C, lamb, D
+            params.q_value, data, Cpred, C, lamb, D
         )
         plot(ax2,
-             points=[('Data', valid), ],
+             points=[('Data', data), ],
              lines=[
                  ('Low freq. signal', xpred, f_low),
                  ('High freq. signal', xpred, f_high),

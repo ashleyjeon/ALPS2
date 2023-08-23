@@ -43,12 +43,12 @@ import pandas as pd
 from numpy.linalg import inv, det
 from scipy.optimize import minimize
 import scipy.stats
+from IPython.display import clear_output
 from typing import Tuple, Union
 
 
 """--------------------------------Fitting Functions-------------------------"""
 def validate_data(data):
-    # TODO 7/13: run by Tufts team to develop more robust validation
     """
     Check that @data is:
     - a numpy array
@@ -58,6 +58,8 @@ def validate_data(data):
     """
     if isinstance(data, np.ndarray) or isinstance(data, pd.DataFrame):
         if data.shape[1] != 2:
+
+
             raise ValueError(
                 f'Fitting functions only take 2 columns; '
                 f'passed {data.shape[1]} ({data.shape})'
