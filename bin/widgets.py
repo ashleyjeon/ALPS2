@@ -4,7 +4,6 @@ from numpy import ndarray
 from pandas import DataFrame
 from IPython.display import display, Javascript, clear_output
 # TODO 8/15: try to migrate away from hublib; unnecessary
-from hublib import ui
 from pathlib import Path
 from typing import List, Callable
 from enum import Enum
@@ -279,7 +278,7 @@ class PlotDownloader(ResultsDownloader):
         filename = f'{txt_filename.value}.{drop_file_format.value}'
         path = files.upload_plt_plot(fig, filename)
         # need to make path relative to '.' for javascript windows
-        path = files.get_path_relative_to(path, files.DIR_SRC).as_posix()
+        path = files.get_path_relative_to(path, files.DIR_BIN).as_posix()
 
         # trigger a browser popup that will download the image to browser
         js = Javascript(
@@ -307,7 +306,7 @@ class DataDownloader(ResultsDownloader):
         files.dump_data(fpath, data, bytes=False)
 
         # need to make path relative to '.' for javascript windows
-        path = files.get_path_relative_to(fpath, files.DIR_SRC).as_posix()
+        path = files.get_path_relative_to(fpath, files.DIR_BIN).as_posix()
 
         # trigger a browser popup that will download the image to browser
         js = Javascript(

@@ -5,7 +5,6 @@ import csv
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 
@@ -52,7 +51,10 @@ except KeyError:
 
 
 def clear_temp():
-    """Clear the temp data directory -- as per official Ghub recommendations"""
+    """
+    Clear the temp and results data directories -- as per official Ghub
+      recommendations
+    """
     for file in DIR_SESS_TDATA.iterdir():
         file.rmdir() if file.is_dir() else file.unlink()
 
