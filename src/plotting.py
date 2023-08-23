@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
-from hublib import ui
+import ipywidgets as pwidg
 import numpy as np
 from typing import List, Tuple, Union
-from IPython.display import display, clear_output
+
 import functions as func
-import widgets
+import widgets as mwidg
 
 
-def conf_gcv(fig: plt.Figure, data, test=False):
+def conf_gcv(fig: plt.Figure, data):
     """
     Form of widgets to configure the input parameters to GCV
     :param fig: matplotlib figure in which to plot output
@@ -18,12 +18,7 @@ def conf_gcv(fig: plt.Figure, data, test=False):
     # validate input data
     valid = func.validate_data(data)
 
-    # degree of bases
-    p = ui.Integer(name='Degree of bases:', value=5)
-    # order of penalty
-    q = ui.Integer(name='Order of penalty:', value=2)
-    # number of observations(?)
-    num = ui.Integer(name='Number of observations:', value=200)
+    base_params = mwidg.ParamsForm(4, 2, 200)
 
     def update_plot():
         """
@@ -32,9 +27,9 @@ def conf_gcv(fig: plt.Figure, data, test=False):
         """
         gcv = func.fit_gcv(
             data=valid,
-            p=p.value,
-            q=q.value,
-            num=num.value
+            p=base_params.p_value,
+            q=base_params.q_value,
+            num=base_params.num_value
         )
         xpred, ypred, std_t = gcv['xpred'], gcv['ypred'], gcv['std_t']
 
@@ -55,9 +50,6 @@ def conf_gcv(fig: plt.Figure, data, test=False):
              y_label='Thickness Change (m)'
              )
 
-        display(fig)
-        clear_output(wait=True)
-
         out_data = {'gcv': gcv}
         results = {
             'data': out_data, 'fig': fig
@@ -65,17 +57,16 @@ def conf_gcv(fig: plt.Figure, data, test=False):
 
         return results
 
-    form = widgets.FormConfigIO(
-        [p, q, num],
+    form = mwidg.FormConfigIO(
+        [base_params,],
         update_func=update_plot,
-        submit_text='Plot',
-        test=test
+        submit_text='Plot'
     )
 
     return form
 
 
-def conf_reml(fig: plt.Figure, data, test=False):
+def conf_reml(fig: plt.Figure, data):
     """
     Setup widgets to accept parameter inputs for REML fitting
     :param fig:
@@ -86,14 +77,7 @@ def conf_reml(fig: plt.Figure, data, test=False):
     # validate input data
     valid = func.validate_data(data)
 
-    # degree of bases
-    p = ui.Integer(name='Degree of bases:', value=5)
-    # order of penalty
-    q = ui.Integer(name='Order of penalty:', value=2)
-    # number of observations(TODO 6/21: verify)
-    num = ui.Integer(name='Number of observations:', value=200)
-    lambda_var = ui.Number(name='Lambda variance:', value=0.1)
-    error_var = ui.Number(name='Error variance:', value=0.1)
+    params = mwidg.ParamsFormVar(5, 2, 200, 0.1, 0.1)
 
     def update_plot():
         """
@@ -102,10 +86,10 @@ def conf_reml(fig: plt.Figure, data, test=False):
         """
         reml = func.fit_reml(
             data=valid,
-            p=p.value,
-            q=q.value,
-            num=num.value,
-            par=(lambda_var.value, error_var.value)
+            p=params.p_value,
+            q=params.q_value,
+            num=params.num_value,
+            par=(params.lam_value, params.error_value)
         )
 
         xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
@@ -127,9 +111,6 @@ def conf_reml(fig: plt.Figure, data, test=False):
              y_label='Thickness Change (m)'
              )
 
-        display(fig)
-        clear_output(wait=True)
-
         out_data = {'reml': reml}
         results = {
             'data': out_data, 'fig': fig
@@ -137,17 +118,16 @@ def conf_reml(fig: plt.Figure, data, test=False):
 
         return results
 
-    form = widgets.FormConfigIO(
-        [p, q, num, lambda_var, error_var],
+    form = mwidg.FormConfigIO(
+        [params,],
         update_func=update_plot,
-        submit_text='Plot',
-        test=test
+        submit_text='Plot'
     )
 
     return form
 
 
-def conf_two_stage(fig: plt.Figure, data, test=False):
+def conf_two_stage(fig: plt.Figure, data):
     """
     Fitting and plotting using two-stage strategy
     :param fig:
@@ -158,29 +138,30 @@ def conf_two_stage(fig: plt.Figure, data, test=False):
     # validate input data
     valid = func.validate_data(data)
 
-    # degree of bases
-    p = ui.Integer(name='Degree of bases:', value=4)
-    # order of penalty
-    q = ui.Integer(name='Order of penalty:', value=2)
-    # number of observations(TODO 6/21: verify)
-    num = ui.Integer(name='Number of observations:', value=300)
-    thresh1 = ui.Number(name='Scaling threshold 1:', value=3.0)
-    thresh2 = ui.Number(name='Scaling threshold 2:', value=1.2)
+    params = mwidg.ParamsFormScale(4, 2, 300, 3.0, 1.2)
 
     def update_plot():
         """
         Display submitted form information and anything else that can be used
           for testing purposes
         """
-        clean, out = func.Outlier(valid, thresh1.value, thresh2.value)
+        clean, out = func.Outlier(
+            valid, params.scale1_value, params.scale2_value
+        )
 
         # GCV fit of original data
         gcv_o = func.fit_gcv(
-            data=valid, p=p.value, q=q.value, num=num.value
+            data=valid,
+            p=params.p_value,
+            q=params.q_value,
+            num=params.num_value
         )
         # GCV fit of clean data
         gcv_c = func.fit_gcv(
-            data=clean, p=p.value, q=q.value, num=num.value
+            data=clean,
+            p=params.p_value,
+            q=params.q_value,
+            num=params.num_value
         )
 
         fig.clear()
@@ -222,10 +203,6 @@ def conf_two_stage(fig: plt.Figure, data, test=False):
              y_label='Thickness Change (m)'
              )
 
-        display(fig)
-        # Clear cell output once another plot request is received
-        clear_output(wait=True)
-
         out_data = {'original_gcv': gcv_o, 'clean_gcv': gcv_c}
         results = {
             'data': out_data, 'fig': fig
@@ -233,29 +210,21 @@ def conf_two_stage(fig: plt.Figure, data, test=False):
 
         return results
 
-    form = widgets.FormConfigIO(
-        [p, q, num, thresh1, thresh2],
+    form = mwidg.FormConfigIO(
+        [params,],
         update_func=update_plot,
-        submit_text='Plot',
-        test=test
+        submit_text='Plot'
     )
 
     return form
 
 
-def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
+def conf_mmf(fig: plt.Figure, data: np.ndarray):
     """Fitting and plotting using two-stage strategy"""
     # validate input data
     valid = func.validate_data(data)
 
-    # degree of bases
-    p = ui.Integer(name='Degree of bases:', value=4)
-    # order of penalty
-    q = ui.Integer(name='Order of penalty:', value=3)
-    # number of observations(TODO 6/21: verify)
-    num = ui.Integer(name='Number of observations:', value=200)
-    lambda_var = ui.Number(name='Lambda variance:', value=0.1)
-    error_var = ui.Number(name='Error variance:', value=0.1)
+    params = mwidg.ParamsFormVar(4, 3, 200, 0.1, 0.1)
 
     def update_plot():
         """
@@ -268,10 +237,10 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
         # Fit the REML model
         reml = func.fit_reml(
             data=valid,
-            p=p.value,
-            q=q.value,
-            num=num.value,
-            par=(lambda_var.value, error_var.value)
+            p=params.p_value,
+            q=params.q_value,
+            num=params.num_value,
+            par=(params.lam_value, params.error_value)
         )
 
         xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
@@ -291,7 +260,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
 
         C, D, lamb, Cpred = reml['C'], reml['D'], reml['lamb'], reml['Cpred']
         f_low, f_high = func.Inference_effects(
-            q.value, valid, Cpred, C, lamb, D
+            params.q_value, valid, Cpred, C, lamb, D
         )
         plot(ax2,
              points=[('Data', valid), ],
@@ -309,9 +278,6 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
         )
         ax2.legend()
 
-        display(fig)
-        clear_output(wait=True)
-
         out_data = {'reml': reml, 'freq_low': f_low, 'freq_high': f_high}
         results = {
             'data': out_data, 'fig': fig
@@ -319,11 +285,10 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray, test=False):
 
         return results
 
-    form = widgets.FormConfigIO(
-        [p, q, num, lambda_var, error_var],
+    form = mwidg.FormConfigIO(
+        [params,],
         update_func=update_plot,
-        submit_text='Plot',
-        test=test
+        submit_text='Plot'
     )
 
     return form
@@ -382,7 +347,7 @@ def plot(
 
 
 if __name__ == '__main__':
-    d = widgets.DataSelector()
+    d = mwidg.DataSelector()
     _, btn_sample, _ = d.children[0].children
     btn_sample.click()
 
@@ -390,8 +355,11 @@ if __name__ == '__main__':
     btn_submit.click()
 
     f1 = plt.figure(figsize=(12, 7))
-    form = conf_gcv(f1, d._data)
+    form = conf_gcv(f1, d.data)
 
-    btn_plot = form.children[3].children[0]
-    btn_plot.click()
+    params = form.children[0]
+    params.num_value
+
+    # btn_plot = form.children[3].children[0]
+    # btn_plot.click()
 

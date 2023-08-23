@@ -1,4 +1,4 @@
-import ipywidgets as widg
+import ipywidgets as pwidg
 import matplotlib.pyplot as plt
 from numpy import ndarray
 from pandas import DataFrame
@@ -6,14 +6,14 @@ from IPython.display import display, Javascript, clear_output
 # TODO 8/15: try to migrate away from hublib; unnecessary
 from hublib import ui
 from pathlib import Path
-from typing import List
+from typing import List, Callable
 from enum import Enum
 
 import files
 import plotting
 
 
-class DataDisplay(widg.VBox):
+class DataDisplay(pwidg.VBox):
     """
     Widget connecting .DataSelector and .FormConfigIO
     """
@@ -52,13 +52,13 @@ class DataDisplay(widg.VBox):
         else:
             form_data = plotting.conf_gcv(fig, data)
 
-        clear_output(wait=True)
+        clear_output()
 
         self.children = (self.children[0], form_data)
         display(self)
 
 
-class DataSelector(widg.VBox):
+class DataSelector(pwidg.VBox):
     """
     Widget handling the selection of data for the project; allows for selecting
       from sample data (packaged with project), existing (previously uploaded),
@@ -72,29 +72,29 @@ class DataSelector(widg.VBox):
         self._callbacks = []
 
         # uploaded/selected data
-        label_instr = widg.Label(value='Select data source:')
-        btn_sample = widg.Button(description=self.OPTIONS[0])
-        btn_own = widg.Button(description=self.OPTIONS[1])
-        box_options = widg.HBox((label_instr, btn_sample, btn_own))
+        label_instr = pwidg.Label(value='Select data source:')
+        btn_sample = pwidg.Button(description=self.OPTIONS[0])
+        btn_own = pwidg.Button(description=self.OPTIONS[1])
+        box_options = pwidg.HBox((label_instr, btn_sample, btn_own))
 
-        sel_file = widg.Select(
+        sel_file = pwidg.Select(
             options=[],
             description='Select files:',
         )
         sel_file.layout.display = 'none' # hide selector upon init
 
-        btn_up = widg.FileUpload(
+        btn_up = pwidg.FileUpload(
             desc='Upload',
             accept='.p,.csv',
             multiple=True,
             dir=files.DIR_SESS_DATA,
         )
-        btn_submit = widg.Button(description='Select')
+        btn_submit = pwidg.Button(description='Select')
         btn_submit.disabled = True # disable upon init
-        box_pick = widg.HBox((btn_submit, btn_up))
+        box_pick = pwidg.HBox((btn_submit, btn_up))
         box_pick.layout.display = 'none' # hide upon init
 
-        out_selected = widg.Output()
+        out_selected = pwidg.Output()
         out_selected.layout.visibility = 'hidden'
 
         def source_sample(b):
@@ -144,7 +144,7 @@ class DataSelector(widg.VBox):
         def submit(b):
             """Read data in @self.data_path"""
             self.data = files.load_data(self._data_path)
-            out_selected.clear_output()
+            out_selected.clear_output(wait=True)
 
             with out_selected:
                 print(f'Loaded data from: {self._data_path.name}\n'
@@ -188,7 +188,7 @@ class DataSelector(widg.VBox):
         self._callbacks.append(callback)
 
 
-class ResultsDownloader(widg.HBox):
+class ResultsDownloader(pwidg.HBox):
     """
     Abstract widget object for downloading some data with a field for specifying filename and a
       dropdown filetype selection
@@ -197,15 +197,15 @@ class ResultsDownloader(widg.HBox):
                  placeholder_filename: str,
                  download_formats: List,
                  download_name: str):
-        txt_filename = widg.Text(
+        txt_filename = pwidg.Text(
             value='',
             placeholder=placeholder_filename,
         )
-        drop_file_format = widg.Dropdown(
+        drop_file_format = pwidg.Dropdown(
             options=download_formats,
             value=download_formats[0]
         )
-        btn_down = widg.Button(
+        btn_down = pwidg.Button(
             description=download_name,
             icon='download',
             disabled=True
@@ -316,21 +316,195 @@ class DataDownloader(ResultsDownloader):
         display(js)
 
 
-class FormConfigIO(ui.Form):
+class ParamsForm(pwidg.VBox):
+    LAYOUT_BOX = pwidg.Layout(
+        display='flex',
+        width='100%',
+    )
+    LAYOUT_LABEL = pwidg.Layout(
+        width='50%',
+    )
+    LAYOUT_TEXT = pwidg.Layout(
+        width='50%',
+    )
+
+    """Box for p, q, num parameters to be used in FormConfigIO"""
+    def __init__(self,
+                 p_val: int,
+                 q_val: int,
+                 num_val: int,
+                 **kwargs):
+        # degree of bases
+        label_p = pwidg.Label(
+            value='Degree of bases:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        text_p = pwidg.BoundedIntText(
+            value=p_val,
+            min=2, max=5, step=1,
+            # description='Degree of bases:',
+            layout=self.LAYOUT_TEXT,
+            # style=self.STYLE_LABEL
+        )
+        p = pwidg.HBox((label_p, text_p), layout=self.LAYOUT_BOX)
+
+        # order of penalty
+        label_q = pwidg.Label(
+            value='Order of penalty:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        text_q = pwidg.BoundedIntText(
+            value=q_val,
+            min=1, max=p_val-1, step=1,
+            # description='Order of penalty:',
+            layout=self.LAYOUT_TEXT,
+            # style=self.STYLE_LABEL
+        )
+        q = pwidg.HBox((label_q, text_q), layout=self.LAYOUT_BOX)
+
+        def link_q(change):
+            max = change['new']
+            text_q.max = max - 1
+        text_p.observe(link_q, names='value')
+
+        # TODO 8/21: any bounds for num? Also verify the meaning of this variable
+        # number of observations
+        label_num = pwidg.Label(
+            value='Number of observations:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        text_num = pwidg.BoundedIntText(
+            value=num_val,
+            min=1, max=9999, step=1, # arbitrary max
+            # description='Number of observations:',
+            layout=self.LAYOUT_TEXT,
+            # style=self.STYLE_LABEL
+        )
+        num = pwidg.HBox((label_num, text_num), layout=self.LAYOUT_BOX)
+
+        children = (p, q, num)
+        super().__init__(children=children, **kwargs)
+
+    @property
+    def p_value(self):
+        return self.children[0].children[1].value
+    @property
+    def q_value(self):
+        return self.children[1].children[1].value
+    @property
+    def num_value(self):
+        return self.children[2].children[1].value
+
+
+class ParamsFormVar(ParamsForm):
+    def __init__(self,
+                 p_val: int,
+                 q_val: int,
+                 num_val: int,
+                 lam_val: float,
+                 err_val: float,
+                 **kwargs):
+        super().__init__(
+            p_val=p_val, q_val=q_val, num_val=num_val,
+            **kwargs
+        )
+
+        lambda_label = pwidg.Label(
+            value='Lambda variance:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        lambda_text = pwidg.BoundedFloatText(
+            value=lam_val, min=0.0, step=0.1,
+        )
+        lambda_var = pwidg.HBox(
+            (lambda_label, lambda_text), layout=self.LAYOUT_BOX
+        )
+
+        error_label = pwidg.Label(
+            value='Error variance:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        error_text = pwidg.BoundedFloatText(
+            value=err_val, min=0.0, step=0.1,
+        )
+        error_var = pwidg.HBox(
+            (error_label, error_text), layout=self.LAYOUT_BOX
+        )
+
+        self.children = (*self.children, lambda_var, error_var)
+
+    @property
+    def lam_value(self):
+        return self.children[3].children[1].value
+    @property
+    def error_value(self):
+        return self.children[4].children[1].value
+
+
+class ParamsFormScale(ParamsForm):
+    def __init__(self,
+                 p_val: int,
+                 q_val: int,
+                 num_val: int,
+                 scale1_val: float,
+                 scale2_val: float,
+                 **kwargs):
+        super().__init__(
+            p_val=p_val, q_val=q_val, num_val=num_val,
+            **kwargs
+        )
+
+        s1_label = pwidg.Label(
+            value='Scaling threshold 1:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        s1_text = pwidg.BoundedFloatText(
+            value=scale1_val, min=0.0, step=0.1,
+        )
+        s1 = pwidg.HBox(
+            (s1_label, s1_text), layout=self.LAYOUT_BOX
+        )
+
+        s2_label = pwidg.Label(
+            value='Scaling threshold 2:',
+            layout=self.LAYOUT_LABEL,
+            style={'description_width': 'initial'}
+        )
+        s2_text = pwidg.BoundedFloatText(
+            value=scale2_val, min=0.0, step=0.1,
+        )
+        s2 = pwidg.HBox(
+            (s2_label, s2_text), layout=self.LAYOUT_BOX
+        )
+
+        self.children = (*self.children, s1, s2)
+
+    @property
+    def scale1_value(self):
+        return self.children[3].children[1].value
+    @property
+    def scale2_value(self):
+        return self.children[4].children[1].value
+
+
+class FormConfigIO(pwidg.VBox):
     """
-    Extension of hublib.ui.Form which appends submit and download buttons,
-      as well as an Output widget that can print optional (test) messages
+    Form widget for changing parameters of a function and plotting its results
     """
     def __init__(self,
-                 wlist,
-                 update_func,
+                 form_widgets: List,
+                 update_func: Callable,
                  submit_text: str = "Submit",
                  download=True,
-                 test=False,
-                 test_msg: str = None,
                  **kwargs):
         """
-        :param wlist:
+        :param form_widgets:
         :param update_func:
         :param submit_text:
         :param download: should a download button be displayed to save output?
@@ -338,7 +512,7 @@ class FormConfigIO(ui.Form):
         :param test_msg:
         :param kwargs:
         """
-        btn_submit = widg.Button(description=submit_text)
+        btn_submit = pwidg.Button(description=submit_text)
         down_plot = PlotDownloader()
         down_data = DataDownloader()
         if download:
@@ -347,38 +521,29 @@ class FormConfigIO(ui.Form):
         else:
             down_plot.hide() # @download == False
             down_data.hide()  # @download == False
-        box_down = widg.VBox([down_plot, down_data])
-        box_btns = widg.HBox([btn_submit, box_down])
-        out_test = widg.Output()
+        box_down = pwidg.VBox([down_plot, down_data])
+        box_btns = pwidg.HBox([btn_submit, box_down])
+        out_plot = pwidg.Output()
 
         # @update_func output
         output = None
 
-        @out_test.capture(clear_output=True, wait=True)
         def update(b):
             """Call the @update_func passed above"""
-            if test:
-                # print test output
-                with out_test:
-                    print('Updated parameters:\n')
-                    for widget in wlist:
-                        # only read new input from NumValue and its children
-                        if isinstance(widget, ui.numvalue.NumValue):
-                             print(f'{widget.name} {widget.value}')
-
-                    # print any additional message if passed
-                    if test_msg is not None: print(test_msg)
-
             nonlocal output
             output = update_func()
 
             # if @update_func returns some results, enable downloading
-            if output is None:
-                down_plot.disable()
-                down_data.disable()
-            else:
+            if output is not None:
                 down_plot.enable()
                 down_data.enable()
+
+                with out_plot:
+                    out_plot.clear_output(wait=True)
+                    display(output['fig'])
+            else:
+                down_plot.disable()
+                down_data.disable()
 
         def save_plot(b):
             nonlocal output
@@ -396,8 +561,8 @@ class FormConfigIO(ui.Form):
         down_plot.on_click(save_plot)
         down_data.on_click(save_data)
 
-        wlist.extend([box_btns, out_test])
-        super().__init__(wlist, **kwargs)
+        children = (*form_widgets, box_btns, out_plot)
+        super().__init__(children, **kwargs)
         display(self)
 
 
