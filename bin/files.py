@@ -3,6 +3,7 @@ from typing import List, Union
 import pickle
 import csv
 import os
+import atexit
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,7 +22,7 @@ DIR_SAMPLE_DATA = DIR_PROJECT / 'data'
 def setup_local(data_dir: Path):
     """Create the temp and out directories for locally stored data"""
     temp = data_dir / 'temp'
-    out = data_dir / 'results'
+    out = data_dir / 'out'
     temp.mkdir(exist_ok=True)
     out.mkdir(exist_ok=True)
 
@@ -64,8 +65,13 @@ def clear_results():
     """
     Clear the results data directory -- as per official Ghub recommendations
     """
-    for file in DIR_RESULTS.iterdir():
+    for file in DIR_OUT.iterdir():
         file.rmdir() if file.is_dir() else file.unlink()
+
+
+# Register exit cleanup code
+atexit.register(clear_temp)
+atexit.register(clear_results)
 
 
 def get_path_relative_to(a: Path, b: Path):
