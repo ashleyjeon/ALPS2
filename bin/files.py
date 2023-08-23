@@ -28,10 +28,10 @@ def setup_local(data_dir: Path):
     return temp, out
 
 
-def setup_remote(data_dir: Path):
+def setup_remote(sess_dir: Path, results_dir: Path):
     """Create temp directory in ghub's current session"""
-    temp = data_dir / 'temp'
-    out = data_dir / 'results'
+    temp = sess_dir / 'temp'
+    out = results_dir / 'out'
     temp.mkdir(exist_ok=True)
     out.mkdir(exist_ok=True)
 
@@ -41,21 +41,30 @@ def setup_remote(data_dir: Path):
 try:
     # Ghub server directories generated each time a tool is run
     SESSION = os.environ['SESSION']
-    DIR_SESS_DATA = Path(os.environ['SESSIONDIR'])
-    DIR_SESS_TDATA, DIR_SESS_RESULTS = setup_remote(DIR_SESS_DATA)
+    DIR_SESS = Path(os.environ['SESSIONDIR'])
+    DIR_RESULTS = Path(os.environ['RESULTSDIR'])
+
+    DIR_TEMP, DIR_OUT = setup_remote(DIR_SESS, DIR_RESULTS)
 except KeyError:
     # Local path alternatives
     SESSION = None
-    DIR_SESS_DATA = DIR_SAMPLE_DATA
-    DIR_SESS_TDATA, DIR_SESS_RESULTS = setup_local(DIR_SESS_DATA)
+    DIR_SESS = DIR_SAMPLE_DATA
+    DIR_TEMP, DIR_OUT = setup_local(DIR_SESS)
 
 
 def clear_temp():
     """
-    Clear the temp and results data directories -- as per official Ghub
-      recommendations
+    Clear the temp directory
     """
-    for file in DIR_SESS_TDATA.iterdir():
+    for file in DIR_TEMP.iterdir():
+        file.rmdir() if file.is_dir() else file.unlink()
+
+
+def clear_results():
+    """
+    Clear the results data directory -- as per official Ghub recommendations
+    """
+    for file in DIR_RESULTS.iterdir():
         file.rmdir() if file.is_dir() else file.unlink()
 
 
@@ -156,7 +165,7 @@ def dump_pickle_bytes(filename, data):
     """
     Pickle data to DIR_SESS_DATA; specify whether data source is @byte
     """
-    path = DIR_SESS_DATA / filename
+    path = DIR_SESS / filename
     try:
         mode = 'wb' if bytes else 'w'
         with open(path, mode) as f:
@@ -173,7 +182,7 @@ def upload_plt_plot(fig: plt.Figure, filename: str):
     NOTE: must be called BEFORE call to plt.show() otherwise saved file will
       be blank
     """
-    path = DIR_SESS_RESULTS / filename
+    path = DIR_OUT / filename
 
     fig.savefig(path, bbox_inches='tight')
     return path

@@ -86,7 +86,7 @@ class DataSelector(pwidg.VBox):
             desc='Upload',
             accept='.p,.csv',
             multiple=True,
-            dir=files.DIR_SESS_DATA,
+            dir=files.DIR_SESS,
         )
         btn_submit = pwidg.Button(description='Select')
         btn_submit.disabled = True # disable upon init
@@ -119,7 +119,7 @@ class DataSelector(pwidg.VBox):
 
             personal = [
                 str(files.get_path_relative_to(p, files.DIR_PROJECT))
-                for p in Path(files.DIR_SESS_TDATA).iterdir()
+                for p in Path(files.DIR_TEMP).iterdir()
                 if p.suffix in files.FORMAT_DATA_IN
             ]
             sel_file.options = personal
@@ -163,7 +163,7 @@ class DataSelector(pwidg.VBox):
                 for name, meta in v.items():
                     # files.dump_data() requires a dictionary
                     d = {name: meta['content']}
-                    files.dump_data(files.DIR_SESS_TDATA / name, d, bytes=True)
+                    files.dump_data(files.DIR_TEMP / name, d, bytes=True)
                     btn_own.click() # reload list of existing files
 
         btn_up.observe(upload, names='value')
@@ -302,7 +302,7 @@ class DataDownloader(ResultsDownloader):
         drop_file_format = self.children[1]
 
         fname = f'{txt_filename.value}.{drop_file_format.value}'
-        fpath = files.DIR_SESS_RESULTS / fname
+        fpath = files.DIR_OUT / fname
         files.dump_data(fpath, data, bytes=False)
 
         # need to make path relative to '.' for javascript windows
