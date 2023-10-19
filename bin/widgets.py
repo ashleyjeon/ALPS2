@@ -1,16 +1,17 @@
-import ipywidgets as pwidg
-import matplotlib.pyplot as plt
-from numpy import ndarray
-from pandas import DataFrame
-from IPython.display import display, Javascript, clear_output
+from enum import Enum
 # TODO 8/15: try to migrate away from hublib; unnecessary
 from pathlib import Path
 from typing import List, Callable
-from enum import Enum
 
-import files
-import plotting
-import functions as func
+import ipywidgets as pwidg
+import matplotlib.pyplot as plt
+from IPython.display import display, Javascript, clear_output
+from numpy import ndarray
+from pandas import DataFrame
+
+from . import files
+from . import functions as func
+from . import plotting
 
 
 class DataDisplay(pwidg.VBox):
@@ -329,6 +330,9 @@ class DataDownloader(ResultsDownloader):
 
 
 class ParamsForm(pwidg.VBox):
+    """
+    Box for p, q, num parameters to be used in FormConfigIO
+    """
     LAYOUT_BOX = pwidg.Layout(
         display='flex',
         width='100%',
@@ -340,7 +344,6 @@ class ParamsForm(pwidg.VBox):
         width='50%',
     )
 
-    """Box for p, q, num parameters to be used in FormConfigIO"""
     def __init__(self,
                  p_val: int,
                  q_val: int,
@@ -505,6 +508,63 @@ class ParamsFormScale(ParamsForm):
         return self.children[4].children[1].value
 
 
+class ParamsPlot(pwidg.Accordion):
+    def __init__(self,
+                 title: str,
+                 xlabel: str,
+                 ylabel: str,
+                 params_label='Plot labels',
+                 **kwargs):
+        self._text_title = title
+        self._text_x = xlabel
+        self._text_y = ylabel
+
+        self._text_title = pwidg.Text(
+            value=title,
+            placeholder='enter plot title',
+            description='Title:'
+        )
+        self._text_x = pwidg.Text(
+            value=xlabel,
+            placeholder='enter plot x-axis label',
+            description='Label x:'
+        )
+        self._text_y = pwidg.Text(
+            value=ylabel,
+            placeholder='enter plot y-axis label',
+            description='Label y:'
+        )
+        box_text = pwidg.VBox(
+            children=[self._text_title, self._text_x, self._text_y]
+        )
+
+        # everything under 1 accordion
+        children = [box_text,]
+        super().__init__(children=children, selected_index=None, **kwargs)
+        super().set_title(0, params_label)
+
+    @property
+    def title(self):
+        return self._text_title.value
+    @title.setter
+    def title(self, title):
+        self._text_title.value = title
+
+    @property
+    def label_x(self):
+        return self._text_x.value
+    @label_x.setter
+    def label_x(self, label):
+        self._text_x.value = label
+
+    @property
+    def label_y(self):
+        return self._text_y.value
+    @label_y.setter
+    def label_y(self, label):
+        self._text_y.value = label
+
+
 class FormConfigIO(pwidg.VBox):
     """
     Form widget for changing parameters of a function and plotting its results
@@ -516,7 +576,7 @@ class FormConfigIO(pwidg.VBox):
                  download=True,
                  **kwargs):
         """
-        :param form_widgets:
+        :param form_widgets: list of widgets to display vertically-stacked
         :param update_func:
         :param submit_text:
         :param download: should a download button be displayed to save output?

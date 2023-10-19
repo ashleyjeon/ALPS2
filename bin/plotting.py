@@ -1,10 +1,11 @@
-import matplotlib.pyplot as plt
-import ipywidgets as pwidg
-import numpy as np
 from typing import List, Tuple, Union
 
-import functions as func
-import widgets as mwidg
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from . import functions as func
+from . import widgets as mwidg
 
 
 def conf_gcv(fig: plt.Figure, data):
@@ -15,7 +16,12 @@ def conf_gcv(fig: plt.Figure, data):
     :param test: (bool) show test output?
     :return:
     """
-    base_params = mwidg.ParamsForm(4, 2, 200)
+    params_base = mwidg.ParamsForm(
+        4, 2, 200
+    )
+    params_plot = mwidg.ParamsPlot(
+        'GCV-fitted ALPS', 'Time', 'Thickness Change(m)'
+    )
 
     def update_plot():
         """
@@ -24,27 +30,26 @@ def conf_gcv(fig: plt.Figure, data):
         """
         gcv = func.fit_gcv(
             data=data,
-            p=base_params.p_value,
-            q=base_params.q_value,
-            num=base_params.num_value
+            p=params_base.p_value,
+            q=params_base.q_value,
+            num=params_base.num_value
         )
-        xpred, ypred, std_t = gcv['xpred'], gcv['ypred'], gcv['std_t']
 
         fig.clear()
         ax = fig.subplots()
 
         plot(ax,
              points=[('Data', data), ],
-             lines=[('Mean Prediction', xpred, ypred), ],
+             lines=[('Mean Prediction', gcv.xpred, gcv.ypred), ],
              fill=[
                  ('95% t-interval',
-                  xpred,
-                  ypred.flatten() - std_t,
-                  ypred.flatten() + std_t),
+                  gcv.xpred,
+                  gcv.ypred.flatten() - gcv.std_t,
+                  gcv.ypred.flatten() + gcv.std_t),
              ],
-             title='GCV fitted ALPS',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot.title,
+             x_label=params_plot.label_x,
+             y_label=params_plot.label_y
              )
 
         out_data = {'gcv': gcv}
@@ -55,7 +60,7 @@ def conf_gcv(fig: plt.Figure, data):
         return results
 
     form = mwidg.FormConfigIO(
-        [base_params,],
+        [params_base, params_plot,],
         update_func=update_plot,
         submit_text='Plot'
     )
@@ -71,7 +76,12 @@ def conf_reml(fig: plt.Figure, data):
     :param test:
     :return:
     """
-    params = mwidg.ParamsFormVar(5, 2, 200, 0.1, 0.1)
+    params_base = mwidg.ParamsFormVar(
+        5, 2, 200, 0.1, 0.1
+    )
+    params_plot = mwidg.ParamsPlot(
+        'REML-fitted ALPS', 'Time', 'Thickness Change(m)'
+    )
 
     def update_plot():
         """
@@ -80,29 +90,27 @@ def conf_reml(fig: plt.Figure, data):
         """
         reml = func.fit_reml(
             data=data,
-            p=params.p_value,
-            q=params.q_value,
-            num=params.num_value,
-            par=(params.lam_value, params.error_value)
+            p=params_base.p_value,
+            q=params_base.q_value,
+            num=params_base.num_value,
+            par=(params_base.lam_value, params_base.error_value)
         )
-
-        xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
 
         fig.clear()
         ax = fig.subplots()
 
         plot(ax,
              points=[('Data', data), ],
-             lines=[('Mean Prediction', xpred, ypred), ],
+             lines=[('Mean Prediction', reml.xpred, reml.ypred), ],
              fill=[
                  ('95% t-interval',
-                  xpred,
-                  ypred.flatten()-std_t,
-                  ypred.flatten()+std_t),
+                  reml.xpred,
+                  reml.ypred.flatten() - reml.std_t,
+                  reml.ypred.flatten() + reml.std_t),
              ],
-             title='REML fitted ALPS',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot.title,
+             x_label=params_plot.label_x,
+             y_label=params_plot.label_y
              )
 
         out_data = {'reml': reml}
@@ -113,7 +121,7 @@ def conf_reml(fig: plt.Figure, data):
         return results
 
     form = mwidg.FormConfigIO(
-        [params,],
+        [params_base, params_plot,],
         update_func=update_plot,
         submit_text='Plot'
     )
@@ -129,8 +137,17 @@ def conf_two_stage(fig: plt.Figure, data):
     :param test:
     :return:
     """
-
-    params = mwidg.ParamsFormScale(4, 2, 300, 3.0, 1.2)
+    params_base = mwidg.ParamsFormScale(
+        4, 2, 300, 3.0, 1.2
+    )
+    params_plot1 = mwidg.ParamsPlot(
+        'One-step', 'Time', 'Thickness Change(m)',
+        'Plot 1 labels'
+    )
+    params_plot2 = mwidg.ParamsPlot(
+        'Two-step', 'Time', 'Thickness Change(m)',
+        'Plot 2 labels'
+    )
 
     def update_plot():
         """
@@ -138,61 +155,59 @@ def conf_two_stage(fig: plt.Figure, data):
           for testing purposes
         """
         clean, out = func.Outlier(
-            data, params.scale1_value, params.scale2_value
+            data, params_base.scale1_value, params_base.scale2_value
         )
 
         # GCV fit of original data
         gcv_o = func.fit_gcv(
             data=data,
-            p=params.p_value,
-            q=params.q_value,
-            num=params.num_value
+            p=params_base.p_value,
+            q=params_base.q_value,
+            num=params_base.num_value
         )
         # GCV fit of clean data
         gcv_c = func.fit_gcv(
             data=clean,
-            p=params.p_value,
-            q=params.q_value,
-            num=params.num_value
+            p=params_base.p_value,
+            q=params_base.q_value,
+            num=params_base.num_value
         )
 
         fig.clear()
         ax1, ax2 = fig.subplots(1, 2)
 
-        xpred1, ypred1, std_t1 = gcv_o['xpred'], gcv_o['ypred'], gcv_o['std_t']
         plot(ax1,
              points=[('Data', data), ],
-             lines=[('With full data', xpred1, ypred1), ],
+             lines=[('With full data', gcv_o.xpred, gcv_o.ypred), ],
              fill=[
                  ('95% t-interval',
-                  xpred1,
-                  ypred1.flatten() - std_t1,
-                  ypred1.flatten() + std_t1),
+                  gcv_o.xpred,
+                  gcv_o.ypred.flatten() - gcv_o.std_t,
+                  gcv_o.ypred.flatten() + gcv_o.std_t),
              ],
-             title='One-step',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot1.title,
+             x_label=params_plot1.label_x,
+             y_label=params_plot1.label_y
              )
 
-        xpred2, ypred2, std_t2 = gcv_c['xpred'], gcv_c['ypred'], gcv_c['std_t']
         plot(ax2,
              points=[
                  ('Normal data', clean),
                  ('Outlier detected', out)
              ],
              lines=[
-                 ('With full data', xpred1, ypred1),
-                 ('Without outliers', xpred2, ypred2),
+                 ('With full data', gcv_o.xpred, gcv_o.ypred),
+                 ('Without outliers', gcv_c.xpred, gcv_c.ypred),
              ],
              fill=[
                  ('95% t-interval',
-                  xpred2,
-                  ypred2.flatten() - std_t2,
-                  ypred2.flatten() + std_t2),
+                  gcv_c.xpred,
+                  gcv_c.ypred.flatten() - gcv_c.std_t,
+                  gcv_c.ypred.flatten() + gcv_c.std_t),
              ],
-             title='Two-step',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot2.title,
+             x_label=params_plot2.label_x,
+             y_label=params_plot2.label_y
              )
 
         out_data = {'original_gcv': gcv_o, 'clean_gcv': gcv_c}
@@ -203,7 +218,7 @@ def conf_two_stage(fig: plt.Figure, data):
         return results
 
     form = mwidg.FormConfigIO(
-        [params,],
+        [params_base, params_plot1, params_plot2],
         update_func=update_plot,
         submit_text='Plot'
     )
@@ -213,7 +228,17 @@ def conf_two_stage(fig: plt.Figure, data):
 
 def conf_mmf(fig: plt.Figure, data: np.ndarray):
     """Fitting and plotting using two-stage strategy"""
-    params = mwidg.ParamsFormVar(4, 3, 200, 0.1, 0.1)
+    params_base = mwidg.ParamsFormVar(
+        4, 3, 200, 0.1, 0.1
+    )
+    params_plot1 = mwidg.ParamsPlot(
+        'REML', 'Time', 'Thickness Change(m)',
+        'Plot 1 labels'
+    )
+    params_plot2 = mwidg.ParamsPlot(
+        'Split Frequency', 'Time', 'Thickness Change(m)',
+        'Plot 2 labels'
+    )
 
     def update_plot():
         """
@@ -226,40 +251,38 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray):
         # Fit the REML model
         reml = func.fit_reml(
             data=data,
-            p=params.p_value,
-            q=params.q_value,
-            num=params.num_value,
-            par=(params.lam_value, params.error_value)
+            p=params_base.p_value,
+            q=params_base.q_value,
+            num=params_base.num_value,
+            par=(params_base.lam_value, params_base.error_value)
         )
 
-        xpred, ypred, std_t = reml['xpred'], reml['ypred'], reml['std_t']
         plot(ax1,
              points=[('Data', data), ],
-             lines=[('Mean Prediction', xpred, ypred), ],
+             lines=[('Mean Prediction', reml.xpred, reml.ypred), ],
              fill=[
                  ('95% t-interval',
-                  xpred,
-                  ypred.flatten()-std_t,
-                  ypred.flatten()+std_t),
+                  reml.xpred,
+                  reml.ypred.flatten() - reml.std_t,
+                  reml.ypred.flatten() + reml.std_t),
              ],
-             title='REML',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot1.title,
+             x_label=params_plot1.label_x,
+             y_label=params_plot1.label_y
              )
 
-        C, D, lamb, Cpred = reml['C'], reml['D'], reml['lamb'], reml['Cpred']
         f_low, f_high = func.Inference_effects(
-            params.q_value, data, Cpred, C, lamb, D
+            params_base.q_value, data, reml.Cpred, reml.C, reml.lam, reml.D
         )
         plot(ax2,
              points=[('Data', data), ],
              lines=[
-                 ('Low freq. signal', xpred, f_low),
-                 ('High freq. signal', xpred, f_high),
+                 ('Low freq. signal', reml.xpred, f_low),
+                 ('High freq. signal', reml.xpred, f_high),
              ],
-             title='Split Frequency',
-             x_label='Time',
-             y_label='Thickness Change (m)'
+             title=params_plot2.title,
+             x_label=params_plot2.label_x,
+             y_label=params_plot2.label_y
              )
         # TODO 6/25: verify y=0 should be constant
         ax2.axhline(
@@ -275,7 +298,7 @@ def conf_mmf(fig: plt.Figure, data: np.ndarray):
         return results
 
     form = mwidg.FormConfigIO(
-        [params,],
+        [params_base, params_plot1, params_plot2],
         update_func=update_plot,
         submit_text='Plot'
     )

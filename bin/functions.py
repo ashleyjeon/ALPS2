@@ -38,14 +38,14 @@
 
 #############################################################################################################################
 
-import numpy as np
-import pandas as pd
-from numpy.linalg import inv, det
-from scipy.optimize import minimize
-import scipy.stats
-from IPython.display import clear_output
+from collections import namedtuple
 from typing import Tuple, Union
 
+import numpy as np
+import pandas as pd
+import scipy.stats
+from numpy.linalg import inv, det
+from scipy.optimize import minimize
 
 """--------------------------------Fitting Functions-------------------------"""
 def validate_data(data):
@@ -106,8 +106,11 @@ def fit_gcv(
     ypred1 = Bpred.dot(theta)
     std_t1, std_n1 = Var_bounds(data, Bpred, B, theta, P, lamb)
 
-    return {'xpred': xpred, 'ypred': ypred1,
-            'std_t': std_t1, 'std_n': std_n1}
+    Output = namedtuple(
+        'Output',
+        'xpred ypred std_t std_n'
+    )
+    return Output(xpred, ypred1, std_t1, std_n1)
 
 
 def fit_reml(
@@ -144,12 +147,17 @@ def fit_reml(
         data, Cpred, C, lamb, sig, D, confidence=0.95
     )
 
-    return {'X': X, 'Z': Z, 'C': C, 'D': D,
-            'lamb': lamb,
-            'Xpred': Xpred, 'Zpred': Zpred, 'Cpred': Cpred,
-            'xpred': xpred, 'ypred': ypred3,
-            'std_t': std_t3, 'std_n': std_n3}
-
+    # X: design matrix of fixed elements parameter
+    # Z: design matrix of random effects parameter
+    # C: composed X, Z
+    # D: sigma matrix with singular values
+    Output = namedtuple(
+        'Output',
+        'X Z C D lam Xpred Zpred Cpred xpred ypred std_t std_n'
+    )
+    return Output(
+        X, Z, C, D, lamb, Xpred, Zpred, Cpred, xpred, ypred3, std_t3, std_n3
+    )
 """--------------------------------------------------------------------------"""
 
 

@@ -1,13 +1,12 @@
-from pathlib import Path
-from typing import Union
-import pickle
+import atexit
 import csv
 import os
-import atexit
+import pickle
+from pathlib import Path
+from typing import Union
 
 import matplotlib.pyplot as plt
 import pandas as pd
-
 
 FORMAT_DATA_IN = ('.p', '.csv')
 FORMAT_IMG_OUT = ('png', 'jpg', 'pdf')
